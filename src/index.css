@@ -1,0 +1,209 @@
+@import "tailwindcss";
+
+/* CSS Variables */
+:root {
+  --background: 0 0% 100%;
+  --foreground: 222.2 84% 4.9%;
+  --card: 0 0% 100%;
+  --card-foreground: 222.2 84% 4.9%;
+  --primary: 222.2 47.4% 11.2%;
+  --primary-foreground: 210 100% 98%;
+  --secondary: 210 100% 97%;
+  --secondary-foreground: 222.2 47.4% 11.2%;
+  --muted: 210 100% 97%;
+  --muted-foreground: 215.4 16.3% 56.9%;
+  --accent: 210 100% 97%;
+  --accent-foreground: 222.2 47.4% 11.2%;
+  --destructive: 0 84.2% 60.2%;
+  --destructive-foreground: 210 100% 98%;
+  --border: 214.3 31.8% 91.4%;
+  --input: 214.3 31.8% 91.4%;
+  --ring: 222.2 84% 4.9%;
+  --radius: 0.5rem;
+}
+
+.dark {
+  --background: 222.2 84% 4.9%;
+  --foreground: 210 100% 98%;
+  --card: 222.2 84% 4.9%;
+  --card-foreground: 210 100% 98%;
+  --primary: 210 100% 98%;
+  --primary-foreground: 222.2 47.4% 11.2%;
+  --secondary: 217.2 32.6% 17.5%;
+  --secondary-foreground: 210 100% 98%;
+  --muted: 217.2 32.6% 17.5%;
+  --muted-foreground: 215 13.8% 43.9%;
+  --accent: 217.2 32.6% 17.5%;
+  --accent-foreground: 210 100% 98%;
+  --destructive: 0 62.8% 30.6%;
+  --destructive-foreground: 210 100% 98%;
+  --border: 217.2 32.6% 17.5%;
+  --input: 217.2 32.6% 17.5%;
+  --ring: 212.7 26.8% 83.9%;
+}
+
+/* Theme Configuration */
+@theme {
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+  --color-secondary: hsl(var(--secondary));
+  --color-secondary-foreground: hsl(var(--secondary-foreground));
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+  --color-accent: hsl(var(--accent));
+  --color-accent-foreground: hsl(var(--accent-foreground));
+  --color-destructive: hsl(var(--destructive));
+  --color-destructive-foreground: hsl(var(--destructive-foreground));
+  --color-border: hsl(var(--border));
+  --color-input: hsl(var(--input));
+  --color-ring: hsl(var(--ring));
+  --radius-radius: var(--radius);
+  
+  --font-family-sans: Inter, system-ui, sans-serif;
+}
+
+/* Base layer styles */
+@layer base {
+  * {
+    border-color: hsl(var(--border));
+  }
+  
+  body {
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
+    font-family: var(--font-family-sans);
+  }
+}
+
+/* Custom utility classes (if needed) */
+@utility bg-background {
+  background-color: hsl(var(--background));
+}
+
+@utility text-foreground {
+  color: hsl(var(--foreground));
+}
+
+@utility bg-card {
+  background-color: hsl(var(--card));
+}
+
+@utility text-card-foreground {
+  color: hsl(var(--card-foreground));
+}
+
+@utility bg-primary {
+  background-color: hsl(var(--primary));
+}
+
+@utility text-primary-foreground {
+  color: hsl(var(--primary-foreground));
+}
+
+@utility border-border {
+  border-color: hsl(var(--border));
+}
+
+/* Hide scrollbar for Chrome, Safari and Edge */
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* Hide scrollbar for IE, Edge and Firefox */
+.hide-scrollbar {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;     /* Firefox */
+}
+
+/* Add to your global.css or equivalent */
+
+@media print {
+  /* Hide everything except the preview content when printing */
+  body * {
+    visibility: hidden;
+  }
+  
+  .fixed.inset-0,
+  .fixed.inset-0 * {
+    visibility: visible;
+  }
+  
+  .fixed.inset-0 {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: white;
+  }
+  
+  /* Hide header buttons when printing */
+  .bg-gradient-to-r,
+  .border-t.border-slate-200,
+  .font-selector-container {
+    display: none !important;
+  }
+  
+  /* Adjust content for printing */
+  .overflow-y-auto {
+    overflow: visible !important;
+    height: auto !important;
+  }
+}
+
+/* Responsive Card Size Styles */
+.card-size-small .category-card-content {
+  padding: 0.75rem !important;
+}
+
+.card-size-large .category-card-content {
+  padding: 1.75rem !important;
+}
+
+/* Grid Responsive Overrides */
+@media (max-width: 768px) {
+  div[style*="gridTemplateColumns"] {
+    grid-template-columns: repeat(1, 1fr) !important;
+  }
+}
+
+@media (min-width: 769px) and (max-width: 1024px) {
+  div[style*="gridTemplateColumns"] {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+}
+
+/* Smooth transitions */
+.news-card, .category-card, [class*="card-size-"] {
+  transition: all 0.3s ease-in-out;
+}
+
+/* Animation for layout changes */
+.grid {
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Responsive text adjustments */
+@media (max-width: 640px) {
+  .card-size-medium h3 {
+    font-size: 1rem !important;
+  }
+  .card-size-medium .text-3xl {
+    font-size: 1.75rem !important;
+  }
+}
