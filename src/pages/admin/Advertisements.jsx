@@ -20,6 +20,7 @@ export default function AdvertisementsPage() {
   const [activeTab, setActiveTab] = useState('active');
   const [rejectAdId, setRejectAdId] = useState(null);
   const [stats, setStats] = useState(null);
+  const [sizeFilter, setSizeFilter] = useState('all');
 
   const fetchAds = useCallback(async () => {
     setLoading(true);
@@ -69,21 +70,33 @@ export default function AdvertisementsPage() {
     }
   };
 
+  // FIXED: Soft delete function - properly deletes from database
   const softDeleteAd = async (id) => {
-    const adId = id?._id || id;
+    // Extract the correct ID
+    const adId = typeof id === 'object' ? (id._id || id.id) : id;
+    
     if (!adId) {
       console.error('Invalid ad ID:', id);
       toast.error('Cannot delete: Invalid advertisement ID');
       return;
     }
     
-    if (!confirm('Are you sure you want to delete this advertisement?')) return;
+    // Show confirmation dialog
+    const confirmDelete = window.confirm('Are you sure you want to delete this advertisement? This action cannot be undone.');
+    if (!confirmDelete) return;
     
     try {
-      await advertisementApi.deleteAdvertisement(adId);
-      toast.success('Advertisement deleted successfully');
-      await fetchAds();
-      await fetchStats();
+      console.log('Deleting ad with ID:', adId);
+      const response = await advertisementApi.deleteAdvertisement(adId);
+      
+      if (response.success) {
+        toast.success('Advertisement deleted successfully');
+        // Refresh the ads list
+        await fetchAds();
+        await fetchStats();
+      } else {
+        toast.error(response.message || 'Failed to delete advertisement');
+      }
     } catch (error) {
       console.error('Failed to delete ad:', error);
       toast.error(error.message || 'Failed to delete advertisement');
@@ -92,10 +105,14 @@ export default function AdvertisementsPage() {
 
   const approveAd = async (id) => {
     try {
-      await advertisementApi.approveAdvertisement(id);
-      toast.success('Advertisement approved successfully');
-      await fetchAds();
-      await fetchStats();
+      const response = await advertisementApi.approveAdvertisement(id);
+      if (response.success) {
+        toast.success('Advertisement approved successfully');
+        await fetchAds();
+        await fetchStats();
+      } else {
+        toast.error(response.message || 'Failed to approve advertisement');
+      }
     } catch (error) {
       console.error('Failed to approve ad:', error);
       toast.error(error.message || 'Failed to approve advertisement');
@@ -104,11 +121,15 @@ export default function AdvertisementsPage() {
 
   const rejectAd = async (id, reason) => {
     try {
-      await advertisementApi.rejectAdvertisement(id, reason);
-      toast.success('Advertisement rejected');
-      await fetchAds();
-      await fetchStats();
-      setRejectAdId(null);
+      const response = await advertisementApi.rejectAdvertisement(id, reason);
+      if (response.success) {
+        toast.success('Advertisement rejected');
+        await fetchAds();
+        await fetchStats();
+        setRejectAdId(null);
+      } else {
+        toast.error(response.message || 'Failed to reject advertisement');
+      }
     } catch (error) {
       console.error('Failed to reject ad:', error);
       toast.error(error.message || 'Failed to reject advertisement');
@@ -117,10 +138,14 @@ export default function AdvertisementsPage() {
 
   const pauseAd = async (id) => {
     try {
-      await advertisementApi.pauseAdvertisement(id);
-      toast.success('Advertisement paused');
-      await fetchAds();
-      await fetchStats();
+      const response = await advertisementApi.pauseAdvertisement(id);
+      if (response.success) {
+        toast.success('Advertisement paused');
+        await fetchAds();
+        await fetchStats();
+      } else {
+        toast.error(response.message || 'Failed to pause advertisement');
+      }
     } catch (error) {
       console.error('Failed to pause ad:', error);
       toast.error(error.message || 'Failed to pause advertisement');
@@ -129,22 +154,35 @@ export default function AdvertisementsPage() {
 
   const resumeAd = async (id) => {
     try {
-      await advertisementApi.resumeAdvertisement(id);
-      toast.success('Advertisement resumed');
-      await fetchAds();
-      await fetchStats();
+      const response = await advertisementApi.resumeAdvertisement(id);
+      if (response.success) {
+        toast.success('Advertisement resumed successfully');
+        await fetchAds();
+        await fetchStats();
+      } else {
+        toast.error(response.message || 'Failed to resume advertisement');
+      }
     } catch (error) {
       console.error('Failed to resume ad:', error);
       toast.error(error.message || 'Failed to resume advertisement');
     }
   };
 
+  const filterBySize = (ad) => {
+    if (sizeFilter === 'all') return true;
+    const sizeKey = `${ad.adSize?.width || 0}x${ad.adSize?.height || 0}`;
+    return sizeKey === sizeFilter;
+  };
+
   const filteredAds = ads.filter(ad => {
-    if (activeTab === 'active') return ad.status === 'active';
-    if (activeTab === 'pending') return ad.status === 'pending_approval';
-    if (activeTab === 'paused') return ad.status === 'paused';
-    if (activeTab === 'expired') return ad.status === 'expired' || ad.status === 'rejected';
-    return true;
+    const tabMatch = (() => {
+      if (activeTab === 'active') return ad.status === 'active';
+      if (activeTab === 'pending') return ad.status === 'pending_approval';
+      if (activeTab === 'paused') return ad.status === 'paused';
+      if (activeTab === 'expired') return ad.status === 'expired' || ad.status === 'rejected';
+      return true;
+    })();
+    return tabMatch && filterBySize(ad);
   });
 
   if (loading && ads.length === 0) {
@@ -184,6 +222,31 @@ export default function AdvertisementsPage() {
             <CardTitle>Advertisement Inventory</CardTitle>
           </CardHeader>
           <CardContent>
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-slate-500">Filter by size:</span>
+                <select 
+                  value={sizeFilter}
+                  onChange={(e) => setSizeFilter(e.target.value)}
+                  className="border rounded-lg px-3 py-1.5 text-sm bg-white"
+                >
+                  <option value="all">All sizes</option>
+                  <option value="728x90">728×90 (Leaderboard)</option>
+                  <option value="970x90">970×90 (Large Leaderboard)</option>
+                  <option value="970x250">970×250 (Billboard)</option>
+                  <option value="300x250">300×250 (Medium Rectangle)</option>
+                  <option value="336x280">336×280 (Large Rectangle)</option>
+                  <option value="160x600">160×600 (Wide Skyscraper)</option>
+                  <option value="300x600">300×600 (Half Page)</option>
+                  <option value="320x50">320×50 (Mobile Banner)</option>
+                  <option value="320x100">320×100 (Large Mobile Banner)</option>
+                </select>
+              </div>
+              <div className="text-sm text-slate-500">
+                Showing {filteredAds.length} of {ads.length} ads
+              </div>
+            </div>
+
             <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
               <TabsList>
                 <TabsTrigger value="active">

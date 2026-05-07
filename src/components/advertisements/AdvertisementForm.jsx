@@ -12,7 +12,12 @@ const POSITION_CATEGORIES = {
     'Video Player': ['Pre-roll', 'Mid-roll', 'Post-roll', 'Pause Ad'],
     'Popup': ['On Load', 'On Scroll', 'On Exit Intent', 'On Click', 'Timed Popup'],
     'Floating': ['Corner Widget', 'Sticky Bottom', 'Slide-in Left', 'Slide-in Right'],
-    'Interstitial': ['Full Screen', 'Between Pages']
+    'Interstitial': ['Full Screen', 'Between Pages'],
+    'Homepage Premium': ['Top Banner', 'Middle Banner', 'Bottom Banner'],
+    'Article Middle': ['After Title', 'Before Content', 'After Content', 'Between Paragraphs'],
+    'Top Banner': ['Top of Page', 'Below Header'],
+    'Between News Cards': ['Between Card 1-2', 'Between Card 2-3', 'Between Card 3-4'],
+    'Sticky Bottom': ['Fixed Bottom']
 };
 
 const ROTATION_METHODS = [
@@ -50,7 +55,12 @@ const defaultForm = () => ({
     targetBehaviors: [],
     targetTimeOfDay: [],
     frequencyCap: null,
-    frequencyCapInterval: 'day'
+    frequencyCapInterval: 'day',
+    adSize: null,
+    deviceCategory: 'both',
+    displayDuration: null,
+    autoHide: false,
+    autoClosePopup: true
 });
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
@@ -290,7 +300,7 @@ const s = {
     typeIcon: { fontSize: '20px' },
 };
 
-// ─── Multiple Image Upload Component (FIXED) ─────────────────────────────────────────
+// ─── Multiple Image Upload Component ─────────────────────────────────────────
 
 function MultipleImageUpload({ images = [], onChange, maxImages = 10 }) {
     const [dragOver, setDragOver] = useState(false);
@@ -303,7 +313,6 @@ function MultipleImageUpload({ images = [], onChange, maxImages = 10 }) {
             return;
         }
         
-        // FIX: Store actual File object, NOT Base64
         const newImage = {
             id: Date.now() + Math.random(),
             file: file,
@@ -498,14 +507,18 @@ function VideoUpload({ videoUrl, videoFile, onUrlChange, onFileChange }) {
     return (
         <div>
             <div style={s.row}>
-                <Field label="YouTube/Vimeo URL" hint="Paste video link from YouTube or Vimeo">
-                    <Inp
+                <div style={s.field}>
+                    <label style={s.label}>YouTube/Vimeo URL</label>
+                    <input
                         value={videoUrl}
-                        onChange={handleUrlChange}
+                        onChange={e => handleUrlChange(e.target.value)}
                         placeholder="https://youtube.com/watch?v=... or https://vimeo.com/..."
+                        style={s.input}
                     />
-                </Field>
-                <Field label="OR Upload Video File" hint="MP4, WebM, MOV — max 50MB">
+                    <span style={s.hint}>Paste video link from YouTube or Vimeo</span>
+                </div>
+                <div style={s.field}>
+                    <label style={s.label}>OR Upload Video File</label>
                     <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                         <button
                             type="button"
@@ -531,7 +544,8 @@ function VideoUpload({ videoUrl, videoFile, onUrlChange, onFileChange }) {
                         />
                         {videoFile && <span style={{ fontSize: '12px', color: '#22a05a' }}>✓ {videoFile.name}</span>}
                     </div>
-                </Field>
+                    <span style={s.hint}>MP4, WebM, MOV — max 50MB</span>
+                </div>
             </div>
             {(preview || videoUrl) && (
                 <div style={{ marginTop: '12px', borderRadius: '12px', overflow: 'hidden', background: '#000' }}>
@@ -562,10 +576,13 @@ function NativeAdFields({ brandName, brandLogo, onBrandNameChange, onBrandLogoCh
 
     return (
         <div style={s.row}>
-            <Field label="Brand Name" hint="Company or brand name for native ad">
-                <Inp value={brandName} onChange={onBrandNameChange} placeholder="e.g., Nike, Apple, Amazon" />
-            </Field>
-            <Field label="Brand Logo" hint="Square logo recommended">
+            <div style={s.field}>
+                <label style={s.label}>Brand Name</label>
+                <input value={brandName} onChange={e => onBrandNameChange(e.target.value)} placeholder="e.g., Nike, Apple, Amazon" style={s.input} />
+                <span style={s.hint}>Company or brand name for native ad</span>
+            </div>
+            <div style={s.field}>
+                <label style={s.label}>Brand Logo</label>
                 <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                     <button
                         type="button"
@@ -593,68 +610,161 @@ function NativeAdFields({ brandName, brandLogo, onBrandNameChange, onBrandLogoCh
                         <img src={preview} alt="Brand logo" style={{ width: '40px', height: '40px', borderRadius: '8px', objectFit: 'cover' }} />
                     )}
                 </div>
-            </Field>
+                <span style={s.hint}>Square logo recommended</span>
+            </div>
         </div>
     );
 }
 
-// ─── Sub-components ───────────────────────────────────────────────────────────
+// ─── Ad Size Selector Component (DROPDOWN VERSION) ───────────────────────────
 
-function Field({ label, hint, children }) {
-    return (
-        <div style={s.field}>
-            {label && <label style={s.label}>{label}</label>}
-            {children}
-            {hint && <span style={s.hint}>{hint}</span>}
+function AdSizeSelector({ selectedSize, onSizeChange, placementCategory, onDeviceCategoryChange }) {
+  const [sizeError, setSizeError] = useState(null);
+  const [imageDimensions, setImageDimensions] = useState(null);
+  
+  // All available ad sizes with descriptions
+  const ALL_AD_SIZES = [
+    // Desktop Sizes
+    { width: 728, height: 90, label: 'Leaderboard', description: 'Top of desktop website', category: 'desktop', placement: 'Header, Footer' },
+    { width: 970, height: 90, label: 'Large Leaderboard', description: 'Premium desktop header', category: 'desktop', placement: 'Header' },
+    { width: 970, height: 250, label: 'Billboard', description: 'High revenue homepage banner', category: 'desktop', placement: 'Homepage Premium' },
+    { width: 300, height: 250, label: 'Medium Rectangle', description: 'Inside articles/content', category: 'desktop,mobile', placement: 'Article Middle, Between News Cards' },
+    { width: 336, height: 280, label: 'Large Rectangle', description: 'Blog/news article ads', category: 'desktop', placement: 'Article Middle' },
+    { width: 160, height: 600, label: 'Wide Skyscraper', description: 'Sidebar desktop ads', category: 'desktop', placement: 'Sidebar' },
+    { width: 300, height: 600, label: 'Half Page', description: 'High CPM sidebar ads', category: 'desktop', placement: 'Sidebar' },
+    // Mobile Sizes
+    { width: 320, height: 50, label: 'Mobile Banner', description: 'Mobile top/bottom', category: 'mobile', placement: 'Top Banner, Sticky Bottom' },
+    { width: 320, height: 100, label: 'Large Mobile Banner', description: 'Better mobile revenue', category: 'mobile', placement: 'Top Banner' },
+    { width: 300, height: 250, label: 'Mobile Rectangle', description: 'Mobile article ads', category: 'mobile', placement: 'Between News Cards' }
+  ];
+
+  // Filter sizes based on placement category
+  const getFilteredSizes = () => {
+    const desktopPlacements = ['Header', 'Homepage Premium', 'Article Middle', 'Sidebar', 'Footer'];
+    const isDesktop = desktopPlacements.includes(placementCategory);
+    
+    if (isDesktop) {
+      return ALL_AD_SIZES.filter(size => size.category.includes('desktop'));
+    } else {
+      return ALL_AD_SIZES.filter(size => size.category.includes('mobile'));
+    }
+  };
+
+  const availableSizes = getFilteredSizes();
+  const deviceType = availableSizes[0]?.category === 'desktop' ? 'desktop' : 'mobile';
+
+  // Update device category when placement changes
+  useEffect(() => {
+    if (onDeviceCategoryChange) {
+      onDeviceCategoryChange(deviceType);
+    }
+  }, [deviceType, onDeviceCategoryChange]);
+
+  const handleSizeChange = (e) => {
+    const selectedValue = e.target.value;
+    if (selectedValue) {
+      const size = JSON.parse(selectedValue);
+      onSizeChange(size);
+      setSizeError(null);
+      setImageDimensions(null);
+    }
+  };
+
+  const getSelectedValue = () => {
+    if (selectedSize) {
+      return JSON.stringify({
+        width: selectedSize.width,
+        height: selectedSize.height,
+        label: selectedSize.label,
+        description: selectedSize.description
+      });
+    }
+    return '';
+  };
+
+  const dropdownStyle = {
+    width: '100%',
+    padding: '12px 14px',
+    borderRadius: '10px',
+    border: '1.5px solid #e8e8e8',
+    background: '#fafafa',
+    fontSize: '14px',
+    color: '#111',
+    cursor: 'pointer',
+    outline: 'none',
+    fontFamily: 'inherit'
+  };
+
+  const infoBoxStyle = {
+    background: '#eff6ff',
+    border: '1px solid #bfdbfe',
+    borderRadius: '12px',
+    padding: '12px 16px',
+    fontSize: '13px',
+    color: '#1e40af',
+    marginTop: '12px'
+  };
+
+  const errorBoxStyle = {
+    background: '#fffbeb',
+    border: '1px solid #fde68a',
+    borderRadius: '12px',
+    padding: '12px 16px',
+    fontSize: '13px',
+    color: '#92400e',
+    marginTop: '12px'
+  };
+
+  return (
+    <div style={{ marginBottom: '16px' }}>
+      <label style={s.label}>Ad Size *</label>
+      <select
+        value={getSelectedValue()}
+        onChange={handleSizeChange}
+        style={dropdownStyle}
+        onFocus={(e) => (e.target.style.borderColor = '#f97316')}
+        onBlur={(e) => (e.target.style.borderColor = '#e8e8e8')}
+      >
+        <option value="">Select ad size...</option>
+        {availableSizes.map((size, index) => (
+          <option 
+            key={`${size.width}x${size.height}-${index}`} 
+            value={JSON.stringify(size)}
+          >
+            {size.label} — {size.width}×{size.height}px ({size.description})
+          </option>
+        ))}
+      </select>
+      <span style={s.hint}>Select the ad size based on placement location</span>
+
+      {selectedSize && (
+        <div style={infoBoxStyle}>
+          <strong>📐 Selected: {selectedSize.label} ({selectedSize.width}×{selectedSize.height}px)</strong>
+          <br />
+          <span style={{ fontSize: '12px', marginTop: '4px', display: 'block' }}>
+            Best for: {selectedSize.description}
+          </span>
+          {selectedSize.placement && (
+            <span style={{ fontSize: '11px', color: '#6b7280', marginTop: '4px', display: 'block' }}>
+              Recommended placements: {selectedSize.placement}
+            </span>
+          )}
+          {imageDimensions && (
+            <span style={{ display: 'block', marginTop: '8px', color: sizeError ? '#dc2626' : '#22a05a' }}>
+              Uploaded image: {imageDimensions.width}×{imageDimensions.height}px
+              {sizeError && <span style={{ display: 'block', marginTop: '4px' }}>⚠️ {sizeError}</span>}
+            </span>
+          )}
         </div>
-    );
-}
+      )}
 
-function Inp({ value, onChange, ...rest }) {
-    return (
-        <input
-            value={value}
-            onChange={e => onChange(e.target.value)}
-            style={s.input}
-            onFocus={e => (e.target.style.borderColor = '#f97316')}
-            onBlur={e => (e.target.style.borderColor = '#e8e8e8')}
-            {...rest}
-        />
-    );
-}
-
-function Sel({ value, onChange, options }) {
-    return (
-        <select
-            value={value}
-            onChange={e => onChange(e.target.value)}
-            style={s.select}
-            onFocus={e => (e.target.style.borderColor = '#f97316')}
-            onBlur={e => (e.target.style.borderColor = '#e8e8e8')}
-        >
-            {options.map(opt =>
-                typeof opt === 'string'
-                    ? <option key={opt} value={opt}>{opt}</option>
-                    : <option key={opt.value} value={opt.value}>{opt.label}</option>
-            )}
-        </select>
-    );
-}
-
-function ToggleSection({ icon, title, badge, badgeColor, isOpen, onToggle, children }) {
-    return (
-        <div style={s.toggleSection}>
-            <button type="button" style={s.toggleHeader} onClick={onToggle}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <span style={{ fontSize: '16px' }}>{icon}</span>
-                    <span style={{ fontWeight: 700, fontSize: '14px', color: '#222' }}>{title}</span>
-                    {badge && <span style={s.badge(badgeColor)}>{badge}</span>}
-                </div>
-                <span style={{ fontSize: '12px', color: '#bbb', transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)', display: 'inline-block', transition: 'transform 0.2s' }}>▼</span>
-            </button>
-            {isOpen && <div style={s.toggleBody}>{children}</div>}
+      {sizeError && (
+        <div style={errorBoxStyle}>
+          ⚠️ {sizeError}. Please upload an image with the correct dimensions.
         </div>
-    );
+      )}
+    </div>
+  );
 }
 
 // ─── Main Component ───────────────────────────────────────────────────────────
@@ -663,6 +773,9 @@ export function AdvertisementForm({ isOpen, onClose, onSubmit, editingAd }) {
     const [formData, setFormData] = useState(defaultForm());
     const [showRotation, setShowRotation] = useState(false);
     const [showAdvanced, setShowAdvanced] = useState(false);
+    const [showTimerSettings, setShowTimerSettings] = useState(false);
+    const [selectedSize, setSelectedSize] = useState(editingAd?.adSize || null);
+    const [deviceCategory, setDeviceCategory] = useState(editingAd?.deviceCategory || 'both');
 
     useEffect(() => {
         if (!isOpen) return;
@@ -676,9 +789,18 @@ export function AdvertisementForm({ isOpen, onClose, onSubmit, editingAd }) {
                 videoUrl: editingAd.videoUrl || '',
                 brandName: editingAd.brandName || '',
                 brandLogo: editingAd.brandLogo || '',
+                adSize: editingAd.adSize || null,
+                deviceCategory: editingAd.deviceCategory || 'both',
+                displayDuration: editingAd.displayDuration || null,
+                autoHide: editingAd.autoHide || false,
+                autoClosePopup: editingAd.autoClosePopup !== undefined ? editingAd.autoClosePopup : true,
             });
+            setSelectedSize(editingAd.adSize || null);
+            setDeviceCategory(editingAd.deviceCategory || 'both');
         } else {
             setFormData(defaultForm());
+            setSelectedSize(null);
+            setDeviceCategory('both');
         }
     }, [editingAd, isOpen]);
 
@@ -689,6 +811,8 @@ export function AdvertisementForm({ isOpen, onClose, onSubmit, editingAd }) {
             const next = { ...prev, [field]: value };
             if (field === 'placementCategory') {
                 next.placementPosition = POSITION_CATEGORIES[value]?.[0] ?? '';
+                // Reset selected size when placement category changes
+                setSelectedSize(null);
             }
             if (field === 'pricingModel') next.costPerUnit = 0;
             return next;
@@ -700,6 +824,7 @@ export function AdvertisementForm({ isOpen, onClose, onSubmit, editingAd }) {
         if (!formData.title) return true;
         if (formData.budget <= 0) return true;
         if (formData.pricingModel !== 'fixed' && formData.costPerUnit <= 0) return true;
+        if (formData.type === 'banner' && !selectedSize) return true;
         
         switch (formData.type) {
             case 'banner':
@@ -715,7 +840,6 @@ export function AdvertisementForm({ isOpen, onClose, onSubmit, editingAd }) {
         }
     };
 
-    // FIXED: handleSubmit - extract File objects properly
     const handleSubmit = () => {
         const imageFiles = formData.images
             .filter(img => img.file instanceof File)
@@ -747,6 +871,11 @@ export function AdvertisementForm({ isOpen, onClose, onSubmit, editingAd }) {
             brandName: formData.brandName,
             brandLogo: formData.brandLogo,
             videoUrl: formData.videoUrl,
+            adSize: selectedSize,
+            deviceCategory: deviceCategory,
+            displayDuration: formData.displayDuration,
+            autoHide: formData.autoHide,
+            autoClosePopup: formData.autoClosePopup,
         };
         
         onSubmit(submitData, imageFiles, formData.videoFile);
@@ -784,15 +913,17 @@ export function AdvertisementForm({ isOpen, onClose, onSubmit, editingAd }) {
                 </div>
 
                 <div style={s.body}>
+                    {/* Creative Details Section */}
                     <div style={s.section}>
                         <div style={s.sectionHeader}>
                             <span style={s.sectionTitle}>Creative Details</span>
                         </div>
 
                         <div style={s.row}>
-                            <Field label="Title *">
-                                <Inp value={formData.title} onChange={v => set('title', v)} placeholder="Summer Sale Campaign" />
-                            </Field>
+                            <div style={s.field}>
+                                <label style={s.label}>Title *</label>
+                                <input value={formData.title} onChange={e => set('title', e.target.value)} placeholder="Summer Sale Campaign" style={s.input} />
+                            </div>
                         </div>
 
                         <div style={s.field}>
@@ -814,50 +945,52 @@ export function AdvertisementForm({ isOpen, onClose, onSubmit, editingAd }) {
                         </div>
 
                         <div style={s.rowFull}>
-                            <Field label="Description">
+                            <div style={s.field}>
+                                <label style={s.label}>Description</label>
                                 <textarea
                                     value={formData.description}
                                     onChange={e => set('description', e.target.value)}
                                     placeholder="Briefly describe your campaign goal…"
                                     rows={3}
                                     style={s.textarea}
-                                    onFocus={e => (e.target.style.borderColor = '#f97316')}
-                                    onBlur={e => (e.target.style.borderColor = '#e8e8e8')}
                                 />
-                            </Field>
+                            </div>
                         </div>
 
                         <div style={s.rowFull}>
                             {formData.type === 'banner' && (
-                                <Field label="Ad Images *" hint="Upload multiple banner images. Drag to reorder. First image will be main.">
+                                <div style={s.field}>
+                                    <label style={s.label}>Ad Images *</label>
                                     <MultipleImageUpload
                                         images={formData.images}
                                         onChange={v => set('images', v)}
                                         maxImages={10}
                                     />
-                                </Field>
+                                </div>
                             )}
 
                             {formData.type === 'video' && (
-                                <Field label="Video Asset *" hint="Provide a video URL or upload a video file">
+                                <div style={s.field}>
+                                    <label style={s.label}>Video Asset *</label>
                                     <VideoUpload
                                         videoUrl={formData.videoUrl}
                                         videoFile={formData.videoFile}
                                         onUrlChange={v => set('videoUrl', v)}
                                         onFileChange={v => set('videoFile', v)}
                                     />
-                                </Field>
+                                </div>
                             )}
 
                             {formData.type === 'popup' && (
                                 <>
-                                    <Field label="Popup Images *" hint="Upload images for popup ad. First image is main.">
+                                    <div style={s.field}>
+                                        <label style={s.label}>Popup Images *</label>
                                         <MultipleImageUpload
                                             images={formData.images}
                                             onChange={v => set('images', v)}
                                             maxImages={5}
                                         />
-                                    </Field>
+                                    </div>
                                     <div style={{ ...s.infoBox('amber'), marginTop: '8px' }}>
                                         💡 Popup ads will appear as modal overlays. You can add multiple images for carousel popups.
                                     </div>
@@ -866,13 +999,14 @@ export function AdvertisementForm({ isOpen, onClose, onSubmit, editingAd }) {
 
                             {formData.type === 'native' && (
                                 <>
-                                    <Field label="Ad Images *" hint="Upload main image for native ad">
+                                    <div style={s.field}>
+                                        <label style={s.label}>Ad Images *</label>
                                         <MultipleImageUpload
                                             images={formData.images}
                                             onChange={v => set('images', v)}
                                             maxImages={5}
                                         />
-                                    </Field>
+                                    </div>
                                     <NativeAdFields
                                         brandName={formData.brandName}
                                         brandLogo={formData.brandLogo}
@@ -884,51 +1018,84 @@ export function AdvertisementForm({ isOpen, onClose, onSubmit, editingAd }) {
                         </div>
 
                         <div style={s.rowFull}>
-                            <Field label="Destination Link">
-                                <Inp value={formData.linkUrl} onChange={v => set('linkUrl', v)} placeholder="https://example.com/landing" />
-                            </Field>
+                            <div style={s.field}>
+                                <label style={s.label}>Destination Link</label>
+                                <input value={formData.linkUrl} onChange={e => set('linkUrl', e.target.value)} placeholder="https://example.com/landing" style={s.input} />
+                            </div>
                         </div>
                     </div>
 
                     <div style={s.divider} />
 
+                    {/* Position Mapping Section */}
                     <div style={s.section}>
                         <div style={s.sectionHeader}>
                             <span style={s.sectionTitle}>📍 Position Mapping</span>
                         </div>
 
                         <div style={s.row}>
-                            <Field label="Layout Section *" hint="Select which region of your website">
-                                <Sel
+                            <div style={s.field}>
+                                <label style={s.label}>Layout Section *</label>
+                                <select
                                     value={formData.placementCategory}
-                                    onChange={v => set('placementCategory', v)}
-                                    options={Object.keys(POSITION_CATEGORIES)}
-                                />
-                            </Field>
-                            <Field label="Specific Position *" hint="Exact location within the section">
-                                <Sel
+                                    onChange={e => set('placementCategory', e.target.value)}
+                                    style={s.select}
+                                >
+                                    {Object.keys(POSITION_CATEGORIES).map(cat => (
+                                        <option key={cat} value={cat}>{cat}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div style={s.field}>
+                                <label style={s.label}>Specific Position *</label>
+                                <select
                                     value={formData.placementPosition}
-                                    onChange={v => set('placementPosition', v)}
-                                    options={positions}
-                                />
-                            </Field>
+                                    onChange={e => set('placementPosition', e.target.value)}
+                                    style={s.select}
+                                >
+                                    {positions.map(pos => (
+                                        <option key={pos} value={pos}>{pos}</option>
+                                    ))}
+                                </select>
+                            </div>
                         </div>
 
                         <div style={s.row}>
-                            <Field label="Target Devices">
-                                <Sel
+                            <div style={s.field}>
+                                <label style={s.label}>Target Devices</label>
+                                <select
                                     value={formData.targetDevices.join(',')}
-                                    onChange={v => set('targetDevices', v.split(','))}
-                                    options={[
-                                        { value: 'desktop', label: 'Desktop Only' },
-                                        { value: 'desktop,mobile', label: 'Desktop + Mobile' },
-                                        { value: 'mobile', label: 'Mobile Only' },
-                                        { value: 'tablet', label: 'Tablet Only' },
-                                        { value: 'desktop,mobile,tablet', label: 'All Devices' },
-                                    ]}
-                                />
-                            </Field>
+                                    onChange={e => set('targetDevices', e.target.value.split(','))}
+                                    style={s.select}
+                                >
+                                    <option value="desktop">Desktop Only</option>
+                                    <option value="desktop,mobile">Desktop + Mobile</option>
+                                    <option value="mobile">Mobile Only</option>
+                                    <option value="tablet">Tablet Only</option>
+                                    <option value="desktop,mobile,tablet">All Devices</option>
+                                </select>
+                            </div>
                             <div />
+                        </div>
+
+                        {/* Ad Size Selection - DROPDOWN VERSION */}
+                        <div style={s.rowFull}>
+                            <AdSizeSelector
+                                selectedSize={selectedSize}
+                                onSizeChange={(size) => {
+                                    setSelectedSize(size);
+                                    set('adSize', size);
+                                    const isDesktopSize = size.category === 'desktop';
+                                    const deviceCat = isDesktopSize ? 'desktop' : 'mobile';
+                                    setDeviceCategory(deviceCat);
+                                    set('deviceCategory', deviceCat);
+                                }}
+                                placementCategory={formData.placementCategory}
+                                onDeviceCategoryChange={(deviceType) => {
+                                    setDeviceCategory(deviceType);
+                                    set('deviceCategory', deviceType);
+                                }}
+                            />
                         </div>
 
                         <div style={{ ...s.infoBox('blue'), display: 'flex', gap: '8px' }}>
@@ -942,55 +1109,64 @@ export function AdvertisementForm({ isOpen, onClose, onSubmit, editingAd }) {
 
                     <div style={s.divider} />
 
+                    {/* Schedule Section */}
                     <div style={s.section}>
                         <div style={s.sectionHeader}>
                             <span style={s.sectionTitle}>📅 Schedule</span>
                         </div>
                         <div style={s.row}>
-                            <Field label="Start Date">
-                                <Inp type="date" value={formData.startDate} onChange={v => set('startDate', v)} />
-                            </Field>
-                            <Field label="End Date">
-                                <Inp type="date" value={formData.endDate} onChange={v => set('endDate', v)} />
-                            </Field>
+                            <div style={s.field}>
+                                <label style={s.label}>Start Date</label>
+                                <input type="date" value={formData.startDate} onChange={e => set('startDate', e.target.value)} style={s.input} />
+                            </div>
+                            <div style={s.field}>
+                                <label style={s.label}>End Date</label>
+                                <input type="date" value={formData.endDate} onChange={e => set('endDate', e.target.value)} style={s.input} />
+                            </div>
                         </div>
                     </div>
 
                     <div style={s.divider} />
 
+                    {/* Pricing & Budget Section */}
                     <div style={s.section}>
                         <div style={s.sectionHeader}>
                             <span style={s.sectionTitle}>💰 Pricing & Budget</span>
                         </div>
 
                         <div style={s.row3}>
-                            <Field label="Pricing Model *">
-                                <Sel
+                            <div style={s.field}>
+                                <label style={s.label}>Pricing Model *</label>
+                                <select
                                     value={formData.pricingModel}
-                                    onChange={v => set('pricingModel', v)}
-                                    options={[
-                                        { value: 'cpc', label: 'Cost Per Click (CPC)' },
-                                        { value: 'cpm', label: 'Cost Per Mille (CPM)' },
-                                        { value: 'fixed', label: 'Fixed Campaign' },
-                                    ]}
-                                />
-                            </Field>
-                            <Field label={costLabel[formData.pricingModel] + ' *'}>
-                                <Inp
+                                    onChange={e => set('pricingModel', e.target.value)}
+                                    style={s.select}
+                                >
+                                    <option value="cpc">Cost Per Click (CPC)</option>
+                                    <option value="cpm">Cost Per Mille (CPM)</option>
+                                    <option value="fixed">Fixed Campaign</option>
+                                </select>
+                            </div>
+                            <div style={s.field}>
+                                <label style={s.label}>{costLabel[formData.pricingModel]} *</label>
+                                <input
                                     type="number" min="0" step="0.01"
                                     value={formData.costPerUnit}
-                                    onChange={v => set('costPerUnit', parseFloat(v) || 0)}
+                                    onChange={e => set('costPerUnit', parseFloat(e.target.value) || 0)}
                                     placeholder={formData.pricingModel === 'cpc' ? '0.50' : formData.pricingModel === 'cpm' ? '5.00' : '500.00'}
+                                    style={s.input}
                                 />
-                            </Field>
-                            <Field label={budgetLabel[formData.pricingModel] + ' *'}>
-                                <Inp
+                            </div>
+                            <div style={s.field}>
+                                <label style={s.label}>{budgetLabel[formData.pricingModel]} *</label>
+                                <input
                                     type="number" min="0" step="0.01"
                                     value={formData.budget}
-                                    onChange={v => set('budget', parseFloat(v) || 0)}
+                                    onChange={e => set('budget', parseFloat(e.target.value) || 0)}
                                     placeholder="Enter total budget"
+                                    style={s.input}
                                 />
-                            </Field>
+                            </div>
                         </div>
 
                         {(formData.budget > 0 || formData.costPerUnit > 0) && (
@@ -1029,112 +1205,197 @@ export function AdvertisementForm({ isOpen, onClose, onSubmit, editingAd }) {
 
                     <div style={s.divider} />
 
-                    <ToggleSection
-                        icon="🔄"
-                        title="Rotation Settings"
-                        badge={formData.isPartOfRotation ? 'Enabled' : 'Disabled'}
-                        badgeColor={formData.isPartOfRotation ? 'green' : 'gray'}
-                        isOpen={showRotation}
-                        onToggle={() => setShowRotation(v => !v)}
-                    >
-                        <div style={s.checkRow}>
-                            <input
-                                type="checkbox"
-                                id="isPartOfRotation"
-                                checked={formData.isPartOfRotation}
-                                onChange={e => set('isPartOfRotation', e.target.checked)}
-                                style={{ width: '16px', height: '16px', accentColor: '#f97316' }}
-                            />
-                            <label htmlFor="isPartOfRotation" style={{ fontSize: '14px', color: '#333', cursor: 'pointer' }}>
-                                Enable rotation with other ads in the same position
-                            </label>
-                        </div>
-
-                        {formData.isPartOfRotation && (
-                            <>
-                                <div style={s.row}>
-                                    <Field label="Rotation Method">
-                                        <Sel
-                                            value={formData.rotationMethod}
-                                            onChange={v => set('rotationMethod', v)}
-                                            options={ROTATION_METHODS.map(m => ({ value: m.value, label: `${m.label} — ${m.description}` }))}
-                                        />
-                                    </Field>
-                                    {formData.rotationMethod === 'weighted' && (
-                                        <Field label="Rotation Weight (%)" hint="Sum of all weights in the group should equal 100">
-                                            <Inp
-                                                type="number" min="0" max="100" step="1"
-                                                value={formData.rotationWeight}
-                                                onChange={v => set('rotationWeight', parseInt(v) || 0)}
-                                            />
-                                        </Field>
-                                    )}
-                                    {formData.rotationMethod === 'targeted' && (
-                                        <Field label="Targeting Rules" hint="e.g. location:IN, device:mobile, time:9-17">
-                                            <textarea rows={3} style={s.textarea} placeholder="location:IN, device:mobile, time:9-17"
-                                                onFocus={e => (e.target.style.borderColor = '#f97316')}
-                                                onBlur={e => (e.target.style.borderColor = '#e8e8e8')} />
-                                        </Field>
-                                    )}
-                                </div>
-
-                                <div style={{ ...s.infoBox('amber'), display: 'flex', gap: '8px' }}>
-                                    <span>🔄</span>
-                                    <span>
-                                        <strong>Rotation active</strong> using <strong>{ROTATION_METHODS.find(m => m.value === formData.rotationMethod)?.label}</strong>.
-                                    </span>
-                                </div>
-                            </>
-                        )}
-                    </ToggleSection>
-
-                    <ToggleSection
-                        icon="🎯"
-                        title="Advanced Targeting"
-                        isOpen={showAdvanced}
-                        onToggle={() => setShowAdvanced(v => !v)}
-                    >
-                        <div style={s.row}>
-                            <Field label="Frequency Cap (max impressions per user)" hint="Leave blank for unlimited">
-                                <Inp
-                                    type="number" min="0" placeholder="e.g. 5"
-                                    value={formData.frequencyCap ?? ''}
-                                    onChange={v => set('frequencyCap', v ? parseInt(v) : null)}
-                                />
-                            </Field>
-                            <Field label="Cap Interval">
-                                <Sel
-                                    value={formData.frequencyCapInterval}
-                                    onChange={v => set('frequencyCapInterval', v)}
-                                    options={[
-                                        { value: 'day', label: 'Per Day' },
-                                        { value: 'week', label: 'Per Week' },
-                                        { value: 'month', label: 'Per Month' },
-                                        { value: 'total', label: 'Total Campaign' },
-                                    ]}
-                                />
-                            </Field>
-                        </div>
-
-                        <div style={s.field}>
-                            <label style={s.label}>Time of Day Targeting</label>
-                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '4px' }}>
-                                {timeSlots.map(t => (
-                                    <button
-                                        key={t} type="button"
-                                        style={s.pillBtn(formData.targetTimeOfDay.includes(t))}
-                                        onClick={() => {
-                                            const cur = formData.targetTimeOfDay;
-                                            set('targetTimeOfDay', cur.includes(t) ? cur.filter(x => x !== t) : [...cur, t]);
-                                        }}
-                                    >
-                                        {t}
-                                    </button>
-                                ))}
+                    {/* Rotation Settings Toggle */}
+                    <div style={s.toggleSection}>
+                        <button type="button" style={s.toggleHeader} onClick={() => setShowRotation(v => !v)}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                <span style={{ fontSize: '16px' }}>🔄</span>
+                                <span style={{ fontWeight: 700, fontSize: '14px', color: '#222' }}>Rotation Settings</span>
+                                <span style={s.badge(formData.isPartOfRotation ? 'green' : 'gray')}>
+                                    {formData.isPartOfRotation ? 'Enabled' : 'Disabled'}
+                                </span>
                             </div>
-                            <span style={s.hint}>Select all time windows when this ad should show. Leave blank for all day.</span>
-                        </div>
-                    </ToggleSection>
+                            <span style={{ fontSize: '12px', color: '#bbb', transform: showRotation ? 'rotate(180deg)' : 'rotate(0deg)', display: 'inline-block', transition: 'transform 0.2s' }}>▼</span>
+                        </button>
+                        {showRotation && (
+                            <div style={s.toggleBody}>
+                                <div style={s.checkRow}>
+                                    <input
+                                        type="checkbox"
+                                        id="isPartOfRotation"
+                                        checked={formData.isPartOfRotation}
+                                        onChange={e => set('isPartOfRotation', e.target.checked)}
+                                        style={{ width: '16px', height: '16px', accentColor: '#f97316' }}
+                                    />
+                                    <label htmlFor="isPartOfRotation" style={{ fontSize: '14px', color: '#333', cursor: 'pointer' }}>
+                                        Enable rotation with other ads in the same position
+                                    </label>
+                                </div>
+
+                                {formData.isPartOfRotation && (
+                                    <>
+                                        <div style={s.row}>
+                                            <div style={s.field}>
+                                                <label style={s.label}>Rotation Method</label>
+                                                <select
+                                                    value={formData.rotationMethod}
+                                                    onChange={e => set('rotationMethod', e.target.value)}
+                                                    style={s.select}
+                                                >
+                                                    {ROTATION_METHODS.map(m => (
+                                                        <option key={m.value} value={m.value}>{m.label} — {m.description}</option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                            {formData.rotationMethod === 'weighted' && (
+                                                <div style={s.field}>
+                                                    <label style={s.label}>Rotation Weight (%)</label>
+                                                    <input
+                                                        type="number" min="0" max="100" step="1"
+                                                        value={formData.rotationWeight}
+                                                        onChange={e => set('rotationWeight', parseInt(e.target.value) || 0)}
+                                                        style={s.input}
+                                                    />
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        <div style={{ ...s.infoBox('amber'), display: 'flex', gap: '8px' }}>
+                                            <span>🔄</span>
+                                            <span>
+                                                <strong>Rotation active</strong> using <strong>{ROTATION_METHODS.find(m => m.value === formData.rotationMethod)?.label}</strong>.
+                                            </span>
+                                        </div>
+                                    </>
+                                )}
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Advanced Targeting Toggle */}
+                    <div style={s.toggleSection}>
+                        <button type="button" style={s.toggleHeader} onClick={() => setShowAdvanced(v => !v)}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                <span style={{ fontSize: '16px' }}>🎯</span>
+                                <span style={{ fontWeight: 700, fontSize: '14px', color: '#222' }}>Advanced Targeting</span>
+                            </div>
+                            <span style={{ fontSize: '12px', color: '#bbb', transform: showAdvanced ? 'rotate(180deg)' : 'rotate(0deg)', display: 'inline-block', transition: 'transform 0.2s' }}>▼</span>
+                        </button>
+                        {showAdvanced && (
+                            <div style={s.toggleBody}>
+                                <div style={s.row}>
+                                    <div style={s.field}>
+                                        <label style={s.label}>Frequency Cap (max impressions per user)</label>
+                                        <input
+                                            type="number" min="0" placeholder="e.g. 5"
+                                            value={formData.frequencyCap ?? ''}
+                                            onChange={e => set('frequencyCap', e.target.value ? parseInt(e.target.value) : null)}
+                                            style={s.input}
+                                        />
+                                    </div>
+                                    <div style={s.field}>
+                                        <label style={s.label}>Cap Interval</label>
+                                        <select
+                                            value={formData.frequencyCapInterval}
+                                            onChange={e => set('frequencyCapInterval', e.target.value)}
+                                            style={s.select}
+                                        >
+                                            <option value="day">Per Day</option>
+                                            <option value="week">Per Week</option>
+                                            <option value="month">Per Month</option>
+                                            <option value="total">Total Campaign</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div style={s.field}>
+                                    <label style={s.label}>Time of Day Targeting</label>
+                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '4px' }}>
+                                        {timeSlots.map(t => (
+                                            <button
+                                                key={t} type="button"
+                                                style={s.pillBtn(formData.targetTimeOfDay.includes(t))}
+                                                onClick={() => {
+                                                    const cur = formData.targetTimeOfDay;
+                                                    set('targetTimeOfDay', cur.includes(t) ? cur.filter(x => x !== t) : [...cur, t]);
+                                                }}
+                                            >
+                                                {t}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Display Timer Settings Toggle */}
+                    <div style={s.toggleSection}>
+                        <button type="button" style={s.toggleHeader} onClick={() => setShowTimerSettings(v => !v)}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                <span style={{ fontSize: '16px' }}>⏱️</span>
+                                <span style={{ fontWeight: 700, fontSize: '14px', color: '#222' }}>Display Timer Settings</span>
+                                <span style={s.badge(formData.autoHide ? 'green' : 'gray')}>
+                                    {formData.autoHide ? 'Auto-Hide ON' : 'Auto-Hide OFF'}
+                                </span>
+                            </div>
+                            <span style={{ fontSize: '12px', color: '#bbb', transform: showTimerSettings ? 'rotate(180deg)' : 'rotate(0deg)', display: 'inline-block', transition: 'transform 0.2s' }}>▼</span>
+                        </button>
+                        {showTimerSettings && (
+                            <div style={s.toggleBody}>
+                                <div style={s.checkRow}>
+                                    <input
+                                        type="checkbox"
+                                        id="autoHide"
+                                        checked={formData.autoHide}
+                                        onChange={e => set('autoHide', e.target.checked)}
+                                        style={{ width: '16px', height: '16px', accentColor: '#f97316' }}
+                                    />
+                                    <label htmlFor="autoHide" style={{ fontSize: '14px', color: '#333', cursor: 'pointer' }}>
+                                        Auto-hide ad after specified duration
+                                    </label>
+                                </div>
+
+                                {formData.autoHide && (
+                                    <div style={s.row}>
+                                        <div style={s.field}>
+                                            <label style={s.label}>Display Duration (seconds)</label>
+                                            <input
+                                                type="number"
+                                                min="1"
+                                                max="300"
+                                                step="1"
+                                                value={formData.displayDuration || ''}
+                                                onChange={e => set('displayDuration', parseInt(e.target.value) || null)}
+                                                placeholder="e.g., 120 for 2 minutes"
+                                                style={s.input}
+                                            />
+                                            <span style={s.hint}>How long the ad should stay visible (1-300 seconds)</span>
+                                        </div>
+                                        {formData.type === 'popup' && (
+                                            <div style={s.field}>
+                                                <label style={s.label}>Auto-Close Popup</label>
+                                                <select
+                                                    value={formData.autoClosePopup ? 'true' : 'false'}
+                                                    onChange={e => set('autoClosePopup', e.target.value === 'true')}
+                                                    style={s.select}
+                                                >
+                                                    <option value="true">Yes - Auto close after duration</option>
+                                                    <option value="false">No - User must close manually</option>
+                                                </select>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+
+                                {formData.autoHide && formData.displayDuration && (
+                                    <div style={{ ...s.infoBox('blue'), marginTop: '8px', fontSize: '12px' }}>
+                                        ⏱️ This ad will automatically hide/close after {Math.floor(formData.displayDuration / 60)} minute(s) and {formData.displayDuration % 60} second(s).
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                    </div>
                 </div>
 
                 <div style={s.footer}>
