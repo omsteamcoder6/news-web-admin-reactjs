@@ -21,6 +21,7 @@ import Awards from '../pages/admin/Awards';
 import LoginPage from '../pages/admin/LoginPage';
 import Gallery from '../pages/admin/Gallery';
 import Videos from '../pages/admin/Videos';
+import Inquiry from '../pages/admin/Inquiry';
 
 // Create a simple Home component if you don't have one
 const Home = () => {
@@ -57,6 +58,7 @@ const AppRoute = () => {
       <Route path="/admin/awards" element={<Awards />} />
       <Route path="/admin/gallery" element={<Gallery />} />
       <Route path="/admin/settings" element={<Settings />} />
+      <Route path="/admin/inquiry" element={<Inquiry />} />
     </Routes>
   );
 };

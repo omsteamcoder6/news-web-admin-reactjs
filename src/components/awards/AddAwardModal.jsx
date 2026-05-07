@@ -14,7 +14,6 @@ export default function AddAwardModal({
     description: "",
     fee: "",
     status: "active",
-    maxNominations: "",
     displayOrder: ""
   });
 
@@ -28,7 +27,6 @@ export default function AddAwardModal({
         description: editingAward.description || "",
         fee: editingAward.fee || "",
         status: editingAward.status || "active",
-        maxNominations: editingAward.maxNominations || "",
         displayOrder: editingAward.displayOrder || ""
       });
     } else {
@@ -37,7 +35,6 @@ export default function AddAwardModal({
         description: "",
         fee: "",
         status: "active",
-        maxNominations: "",
         displayOrder: ""
       });
     }
@@ -77,16 +74,13 @@ export default function AddAwardModal({
         description: formData.description,
         fee: parseFloat(formData.fee),
         status: formData.status,
-        maxNominations: formData.maxNominations ? parseInt(formData.maxNominations) : null,
         displayOrder: formData.displayOrder ? parseInt(formData.displayOrder) : null
       };
 
       if (editingAward) {
-        // Update existing award
-        await awardAPI.updateAward(editingAward.id, awardData);
+        await awardAPI.updateAward(editingAward._id, awardData);
         onAwardUpdated();
       } else {
-        // Create new award
         await awardAPI.createAward(awardData);
         onAwardAdded();
       }
@@ -118,7 +112,7 @@ export default function AddAwardModal({
           </button>
         </div>
 
-        {/* Modal Body - same as before */}
+        {/* Modal Body */}
         <form onSubmit={handleSubmit} className="p-5 space-y-5">
           {isEditing && (
             <div className="bg-gray-50 p-3 rounded-lg">
@@ -128,7 +122,7 @@ export default function AddAwardModal({
             </div>
           )}
 
-          {/* Rest of the form remains the same as your original */}
+          {/* Award Name */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Award Name <span className="text-red-500">*</span>
@@ -146,6 +140,7 @@ export default function AddAwardModal({
             {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name}</p>}
           </div>
 
+          {/* Description */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Description <span className="text-red-500">*</span>
@@ -163,6 +158,7 @@ export default function AddAwardModal({
             {errors.description && <p className="text-red-500 text-xs mt-1">{errors.description}</p>}
           </div>
 
+          {/* Fee and Status Row */}
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -198,36 +194,22 @@ export default function AddAwardModal({
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Max Nominations (Optional)
-              </label>
-              <input
-                type="number"
-                name="maxNominations"
-                value={formData.maxNominations}
-                onChange={handleChange}
-                placeholder="Unlimited"
-                className="w-full p-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Display Order (Optional)
-              </label>
-              <input
-                type="number"
-                name="displayOrder"
-                value={formData.displayOrder}
-                onChange={handleChange}
-                placeholder="1, 2, 3..."
-                className="w-full p-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
-              />
-            </div>
+          {/* Display Order */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Display Order (Optional)
+            </label>
+            <input
+              type="number"
+              name="displayOrder"
+              value={formData.displayOrder}
+              onChange={handleChange}
+              placeholder="1, 2, 3..."
+              className="w-full p-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+            />
           </div>
 
+          {/* Buttons */}
           <div className="flex gap-3 pt-4 border-t">
             <button
               type="button"

@@ -13,6 +13,7 @@ const menuItems = [
   { label: 'Categories', href: '/admin/categories', icon: Tag, section: 'MENU' },
   { label: 'Authors', href: '/admin/authors', icon: Users, section: 'MENU' },
   { label: 'Multimedia', href: '/admin/multimedia', icon: Images, section: 'MENU' },
+  { label: 'Inquiry', href: '/admin/inquiry', icon: Images, section: 'MENU' },
   { label: 'Premium Content', href: '/admin/premium', icon: ShoppingCart, section: 'MENU' },
   { label: 'SEO Management', href: '/admin/seo', icon: Eye, section: 'MENU' },
   { label: 'Advertisements', href: '/admin/advertisements', icon: DollarSign, section: 'DISCOVERY' },

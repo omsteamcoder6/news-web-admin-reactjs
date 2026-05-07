@@ -10,52 +10,23 @@ const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:3001";
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3001/api";
 const IMAGE_BASE_URL = import.meta.env.VITE_IMAGE_BASE_URL || "http://localhost:3001";
 
+// FIXED - SIMPLE VERSION - Just add base URL to database path
 function resolveImageUrl(url) {
-  if (!url) {
-    console.log('❌ No cover image URL');
-    return null;
-  }
+  if (!url) return null;
   
-  console.log('🖼️ Original URL from API:', url);
-  
-  // If it's already a full URL with our backend, use it directly
-  if (url.startsWith(BACKEND_URL) || url.startsWith(IMAGE_BASE_URL)) {
-    console.log('✅ Already full URL:', url);
-    return url;
-  }
-  
-  // If it starts with http but different domain, use as is
+  // If it's already a full URL
   if (url.startsWith('http://') || url.startsWith('https://')) {
-    console.log('✅ External URL:', url);
     return url;
   }
   
-  // Clean the URL - remove any backend URL if present
-  let cleanUrl = url;
-  if (cleanUrl.includes('localhost:3001')) {
-    cleanUrl = cleanUrl.replace(/^https?:\/\/localhost:3001/, '');
+  // If it's a blob URL (preview)
+  if (url.startsWith('blob:')) {
+    return url;
   }
   
-  // Ensure it starts with /
-  if (!cleanUrl.startsWith('/')) {
-    cleanUrl = '/' + cleanUrl;
-  }
-  
-  // FIXED: Handle both path formats
-  // If URL starts with /uploads/ or /magazines/, construct properly
-  let fullUrl;
-  if (cleanUrl.startsWith('/uploads/')) {
-    fullUrl = `${IMAGE_BASE_URL}${cleanUrl}`;
-  } else if (cleanUrl.startsWith('/magazines/')) {
-    // Old format - add /uploads prefix
-    fullUrl = `${IMAGE_BASE_URL}/uploads${cleanUrl}`;
-  } else {
-    fullUrl = `${IMAGE_BASE_URL}${cleanUrl}`;
-  }
-  
-  console.log('🔨 Constructed URL:', fullUrl);
-  
-  return fullUrl;
+  // Database already has correct path starting with /uploads/
+  // Just add the base URL - NOTHING ELSE
+  return `${IMAGE_BASE_URL}${url}`;
 }
 
 export function MagazineCard({
@@ -79,12 +50,6 @@ export function MagazineCard({
 
   useEffect(() => { 
     setImgError(false);
-    // Debug log when magazine changes
-    console.log('📘 Magazine loaded:', {
-      title: magazine.title,
-      coverImageUrl: magazine.coverImageUrl,
-      resolvedUrl: resolveImageUrl(magazine.coverImageUrl)
-    });
   }, [magazine.coverImageUrl, magazine.title]);
 
   const checkLocalOfflineStatus = async () => {
@@ -157,7 +122,7 @@ export function MagazineCard({
                 setImgError(true);
                 e.target.style.display = 'none';
               }}
-              onLoad={() => console.log(`✅ Image loaded successfully: ${coverUrl}`)}
+              onLoad={() => console.log(`✅ Image loaded: ${coverUrl}`)}
             />
           ) : (
             <div className="w-full h-full flex flex-col items-center justify-center gap-2">

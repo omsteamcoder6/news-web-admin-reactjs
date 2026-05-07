@@ -1,90 +1,182 @@
 // components/premium/SubscriptionTracker.jsx
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/Card';
 import { Button } from '../ui/Button';
-import { Search, Users, CheckCircle, XCircle, Clock } from 'lucide-react';
-
-// Mock data - replace with your actual API data
-const mockSubscriptions = [
-  {
-    id: 'sub_1',
-    userId: 'user_101',
-    userName: 'Rajesh Kumar',
-    userEmail: 'rajesh@example.com',
-    planName: 'Premium',
-    planPrice: '₹399',
-    status: 'active',
-    startDate: '2026-01-15',
-    expiryDate: '2026-02-15',
-    autoRenew: true,
-    paymentMethod: 'UPI (Google Pay)',
-    lastPaymentId: 'pay_001'
-  },
-  {
-    id: 'sub_2',
-    userId: 'user_102',
-    userName: 'Priya Sharma',
-    userEmail: 'priya@example.com',
-    planName: 'Annual Plan',
-    planPrice: '₹3,999',
-    status: 'active',
-    startDate: '2025-11-01',
-    expiryDate: '2026-11-01',
-    autoRenew: true,
-    paymentMethod: 'Credit Card',
-    lastPaymentId: 'pay_002'
-  },
-  {
-    id: 'sub_3',
-    userId: 'user_103',
-    userName: 'Amit Patel',
-    userEmail: 'amit@example.com',
-    planName: 'Family Plan',
-    planPrice: '₹599',
-    status: 'expired',
-    startDate: '2025-10-10',
-    expiryDate: '2026-01-10',
-    autoRenew: false,
-    paymentMethod: 'Net Banking',
-    lastPaymentId: 'pay_003'
-  },
-  {
-    id: 'sub_4',
-    userId: 'user_104',
-    userName: 'Neha Gupta',
-    userEmail: 'neha@example.com',
-    planName: 'Basic',
-    planPrice: '₹199',
-    status: 'cancelled',
-    startDate: '2025-12-05',
-    expiryDate: '2026-01-05',
-    autoRenew: false,
-    paymentMethod: 'Wallet',
-    lastPaymentId: 'pay_004'
-  },
-  {
-    id: 'sub_5',
-    userId: 'user_105',
-    userName: 'Vikram Singh',
-    userEmail: 'vikram@example.com',
-    planName: 'Premium',
-    planPrice: '₹399',
-    status: 'pending',
-    startDate: '2026-01-20',
-    expiryDate: '2026-02-20',
-    autoRenew: true,
-    paymentMethod: 'Credit Card',
-    lastPaymentId: 'pay_005'
-  }
-];
+import { Search, Users, CheckCircle, XCircle, Clock, Loader2 } from 'lucide-react';
+import apiClient from '../../lib/apiClient';
 
 export default function SubscriptionTracker() {
-  const [subscriptions, setSubscriptions] = useState(mockSubscriptions);
+  const [subscriptions, setSubscriptions] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [selectedSubscription, setSelectedSubscription] = useState(null);
+  const [stats, setStats] = useState({
+    total: 0,
+    active: 0,
+    expired: 0,
+    totalRevenue: 0
+  });
+
+  // Fetch subscriptions from backend
+  useEffect(() => {
+    fetchAllSubscriptions();
+  }, []);
+
+  const fetchAllSubscriptions = async () => {
+    setLoading(true);
+    setError(null);
+    
+    try {
+      // UPDATED: Changed from /admin/subscriptions to /subscriptions/all-subscriptions
+      const response = await apiClient.get('/subscriptions/all-subscriptions');
+      
+      if (response.success && response.data) {
+        const formattedSubscriptions = formatSubscriptionsData(response.data);
+        setSubscriptions(formattedSubscriptions);
+        calculateStats(formattedSubscriptions);
+      } else {
+        setSubscriptions([]);
+      }
+    } catch (err) {
+      console.error('Error fetching subscriptions:', err);
+      setError(err.message || 'Failed to fetch subscription data');
+      // Use mock data only in development
+      if (process.env.NODE_ENV === 'development') {
+        const mockData = getMockSubscriptions();
+        setSubscriptions(mockData);
+        calculateStats(mockData);
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const formatSubscriptionsData = (data) => {
+    // Check if data is array or has data property
+    const subscriptionsArray = Array.isArray(data) ? data : (data.data || data);
+    
+    if (!Array.isArray(subscriptionsArray)) return [];
+    
+    return subscriptionsArray.map(sub => ({
+      id: sub._id || sub.id,
+      userId: sub.user?._id || sub.userId || sub.user,
+      userName: sub.user?.name || sub.userName || sub.user?.name || 'Unknown User',
+      userEmail: sub.user?.email || sub.userEmail || sub.user?.email || 'unknown@example.com',
+      planName: sub.plan?.name || sub.planName || 'Premium Plan',
+      planPrice: formatPrice(sub.plan?.price || sub.amount || 0),
+      status: sub.status || sub.subscriptionStatus || 'active',
+      startDate: formatDate(sub.startDate || sub.createdAt),
+      expiryDate: formatDate(sub.endDate || sub.expiryDate),
+      autoRenew: sub.autoRenew !== undefined ? sub.autoRenew : true,
+      paymentMethod: sub.paymentMethod || 'Razorpay',
+      lastPaymentId: sub.paymentId || sub.lastPaymentId || 'N/A'
+    }));
+  };
+
+  const formatPrice = (price) => {
+    if (typeof price === 'number') {
+      return `₹${price.toLocaleString()}`;
+    }
+    return price || '₹0';
+  };
+
+  const formatDate = (dateString) => {
+    if (!dateString) return 'N/A';
+    const date = new Date(dateString);
+    return date.toISOString().split('T')[0];
+  };
+
+  const calculateStats = (subs) => {
+    const active = subs.filter(s => s.status === 'active').length;
+    const expired = subs.filter(s => s.status === 'expired' || s.status === 'cancelled').length;
+    const totalRevenue = subs
+      .filter(s => s.status === 'active')
+      .reduce((sum, s) => sum + (parseInt(s.planPrice.replace(/[^0-9]/g, '0')) || 0), 0);
+    
+    setStats({
+      total: subs.length,
+      active,
+      expired,
+      totalRevenue
+    });
+  };
+
+  const getMockSubscriptions = () => [
+    {
+      id: 'sub_1',
+      userId: 'user_101',
+      userName: 'Rajesh Kumar',
+      userEmail: 'rajesh@example.com',
+      planName: 'Premium',
+      planPrice: '₹399',
+      status: 'active',
+      startDate: '2026-01-15',
+      expiryDate: '2026-02-15',
+      autoRenew: true,
+      paymentMethod: 'UPI',
+      lastPaymentId: 'pay_001'
+    },
+    {
+      id: 'sub_2',
+      userId: 'user_102',
+      userName: 'Priya Sharma',
+      userEmail: 'priya@example.com',
+      planName: 'Annual Plan',
+      planPrice: '₹3,999',
+      status: 'active',
+      startDate: '2025-11-01',
+      expiryDate: '2026-11-01',
+      autoRenew: true,
+      paymentMethod: 'Credit Card',
+      lastPaymentId: 'pay_002'
+    },
+    {
+      id: 'sub_3',
+      userId: 'user_103',
+      userName: 'Amit Patel',
+      userEmail: 'amit@example.com',
+      planName: 'Family Plan',
+      planPrice: '₹599',
+      status: 'expired',
+      startDate: '2025-10-10',
+      expiryDate: '2026-01-10',
+      autoRenew: false,
+      paymentMethod: 'Net Banking',
+      lastPaymentId: 'pay_003'
+    },
+    {
+      id: 'sub_4',
+      userId: 'user_104',
+      userName: 'Neha Gupta',
+      userEmail: 'neha@example.com',
+      planName: 'Basic',
+      planPrice: '₹199',
+      status: 'cancelled',
+      startDate: '2025-12-05',
+      expiryDate: '2026-01-05',
+      autoRenew: false,
+      paymentMethod: 'Wallet',
+      lastPaymentId: 'pay_004'
+    },
+    {
+      id: 'sub_5',
+      userId: 'user_105',
+      userName: 'Vikram Singh',
+      userEmail: 'vikram@example.com',
+      planName: 'Premium',
+      planPrice: '₹399',
+      status: 'pending',
+      startDate: '2026-01-20',
+      expiryDate: '2026-02-20',
+      autoRenew: true,
+      paymentMethod: 'Credit Card',
+      lastPaymentId: 'pay_005'
+    }
+  ];
 
   const getStatusBadge = (status) => {
     const badges = {
@@ -97,21 +189,21 @@ export default function SubscriptionTracker() {
   };
 
   const filteredSubscriptions = subscriptions.filter(sub => {
-    const matchesSearch = sub.userName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         sub.userEmail.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         sub.planName.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch = sub.userName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         sub.userEmail?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         sub.planName?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = filterStatus === 'all' || sub.status === filterStatus;
     return matchesSearch && matchesStatus;
   });
 
-  const stats = {
-    total: subscriptions.length,
-    active: subscriptions.filter(s => s.status === 'active').length,
-    expired: subscriptions.filter(s => s.status === 'expired').length,
-    totalRevenue: subscriptions
-      .filter(s => s.status === 'active')
-      .reduce((sum, s) => sum + parseInt(s.planPrice.replace(/[^0-9]/g, '')), 0)
-  };
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="w-8 h-8 animate-spin text-orange-500" />
+        <span className="ml-2 text-slate-600">Loading subscriptions...</span>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -163,6 +255,16 @@ export default function SubscriptionTracker() {
         </Card>
       </div>
 
+      {/* Error Message */}
+      {error && (
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+          <p className="text-yellow-800 text-sm">{error}</p>
+          <Button onClick={fetchAllSubscriptions} className="mt-2" size="sm">
+            Retry
+          </Button>
+        </div>
+      )}
+
       {/* Filters */}
       <Card>
         <CardHeader>
@@ -208,43 +310,51 @@ export default function SubscriptionTracker() {
                 </tr>
               </thead>
               <tbody>
-                {filteredSubscriptions.map((sub) => {
-                  const statusBadge = getStatusBadge(sub.status);
-                  return (
-                    <tr key={sub.id} className="border-b border-slate-100 hover:bg-slate-50">
-                      <td className="p-3">
-                        <div>
-                          <p className="font-medium text-slate-900">{sub.userName}</p>
-                          <p className="text-xs text-slate-500">{sub.userEmail}</p>
-                        </div>
-                      </td>
-                      <td className="p-3 font-medium text-slate-900">{sub.planName}</td>
-                      <td className="p-3 text-slate-700">{sub.planPrice}</td>
-                      <td className="p-3">
-                        <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${statusBadge.color}`}>
-                          {statusBadge.icon}
-                          {sub.status.charAt(0).toUpperCase() + sub.status.slice(1)}
-                        </span>
-                      </td>
-                      <td className="p-3 text-sm text-slate-700">{sub.expiryDate}</td>
-                      <td className="p-3">
-                        <span className={`text-sm ${sub.autoRenew ? 'text-green-600' : 'text-red-600'}`}>
-                          {sub.autoRenew ? 'Yes' : 'No'}
-                        </span>
-                      </td>
-                      <td className="p-3">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setSelectedSubscription(sub)}
-                          className="text-sm"
-                        >
-                          View Details
-                        </Button>
-                      </td>
-                    </tr>
-                  );
-                })}
+                {filteredSubscriptions.length === 0 ? (
+                  <tr>
+                    <td colSpan="7" className="text-center p-8 text-slate-500">
+                      No subscriptions found
+                    </td>
+                  </tr>
+                ) : (
+                  filteredSubscriptions.map((sub) => {
+                    const statusBadge = getStatusBadge(sub.status);
+                    return (
+                      <tr key={sub.id} className="border-b border-slate-100 hover:bg-slate-50">
+                        <td className="p-3">
+                          <div>
+                            <p className="font-medium text-slate-900">{sub.userName}</p>
+                            <p className="text-xs text-slate-500">{sub.userEmail}</p>
+                          </div>
+                        </td>
+                        <td className="p-3 font-medium text-slate-900">{sub.planName}</td>
+                        <td className="p-3 text-slate-700">{sub.planPrice}</td>
+                        <td className="p-3">
+                          <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${statusBadge.color}`}>
+                            {statusBadge.icon}
+                            {sub.status.charAt(0).toUpperCase() + sub.status.slice(1)}
+                          </span>
+                        </td>
+                        <td className="p-3 text-sm text-slate-700">{sub.expiryDate}</td>
+                        <td className="p-3">
+                          <span className={`text-sm ${sub.autoRenew ? 'text-green-600' : 'text-red-600'}`}>
+                            {sub.autoRenew ? 'Yes' : 'No'}
+                          </span>
+                        </td>
+                        <td className="p-3">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setSelectedSubscription(sub)}
+                            className="text-sm"
+                          >
+                            View Details
+                          </Button>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
               </tbody>
             </table>
           </div>
