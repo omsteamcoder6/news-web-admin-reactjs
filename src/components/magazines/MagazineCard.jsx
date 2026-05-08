@@ -1,11 +1,14 @@
 // frontend/src/components/magazines/MagazineCard.jsx
+
 import { useState, useEffect } from "react";
 import { Button } from "../../components/ui/Button";
 import { Card, CardContent } from "../../components/ui/Card";
 import { Download, Edit2, Crown, Unlock, Cloud, WifiOff, Trash2 } from "lucide-react";
 import { MagazineService } from "../../lib/magazineService";
 
-// Get backend URL from environment variables
+// ============================================
+// THIS IS WHERE VITE_IMAGE_BASE_URL IS CONNECTED
+// ============================================
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:3001";
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3001/api";
 const IMAGE_BASE_URL = import.meta.env.VITE_IMAGE_BASE_URL || "http://localhost:3001";
@@ -26,6 +29,9 @@ function resolveImageUrl(url) {
   
   // Database already has correct path starting with /uploads/
   // Just add the base URL - NOTHING ELSE
+  // ============================================
+  // VITE_IMAGE_BASE_URL IS USED RIGHT HERE ↓
+  // ============================================
   return `${IMAGE_BASE_URL}${url}`;
 }
 
