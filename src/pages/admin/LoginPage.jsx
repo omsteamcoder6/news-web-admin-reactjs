@@ -20,20 +20,18 @@ const LoginPage = () => {
     try {
       const response = await authAPI.login(email, password);
 
-      // Support both response shapes: { token } or { data: { token } }
-      const payload = response.data?.data || response.data;
-      const token = payload.token || payload.accessToken;
-      const user  = payload.user;
-
-      if (!token) {
-        throw new Error('No token received from server');
+      // ✅ FIXED: Correctly access the response data
+      if (response.data.success) {
+        const token = response.data.data.token;
+        const user = response.data.data.user;
+        
+        // setAuth writes to Zustand + persists to localStorage via persist middleware
+        setAuth(token, user);
+        
+        navigate('/admin');
+      } else {
+        setError(response.data.message || 'Login failed');
       }
-
-      // setAuth writes to Zustand + persists to localStorage via persist middleware.
-      // No need to manually call localStorage.setItem anywhere.
-      setAuth(token, user);
-
-      navigate('/admin');
     } catch (err) {
       console.error('Login error:', err);
       setError(err.response?.data?.message || err.message || 'Invalid email or password');
