@@ -20,8 +20,8 @@ const getAuthToken = () => {
 const clearAuthAndRedirect = () => {
   if (typeof window !== 'undefined') {
     localStorage.removeItem('auth-storage');
-    if (window.location.pathname !== '/login') {
-      window.location.href = '/login';
+    if (window.location.pathname !== '/') {
+      window.location.href = '/';
     }
   }
 };

@@ -37,7 +37,7 @@ apiClient.interceptors.response.use(
       // Handle unauthorized - clear auth store and redirect to login
       useAuthStore.getState().logout();
       if (typeof window !== 'undefined') {
-        window.location.href = '/login';
+        window.location.href = '/';
       }
     }
     return Promise.reject(error);

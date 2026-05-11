@@ -36,7 +36,7 @@ export default function Articles() {
   // Fetch articles when activeTab changes
   useEffect(() => {
     fetchArticles();
-  }, [activeTab]); // ✅ CHANGED: Added activeTab as dependency
+  }, [activeTab]);
 
   const fetchArticles = async () => {
     try {
@@ -45,11 +45,13 @@ export default function Articles() {
 
       console.log('Fetching articles for tab:', activeTab);
       
-      // ✅ CHANGED: Send status filter based on active tab
+      // Send status filter based on active tab
       let statusFilter = '';
       if (activeTab === 'draft') statusFilter = 'draft';
       if (activeTab === 'scheduled') statusFilter = 'scheduled';
       if (activeTab === 'published') statusFilter = 'published';
+      
+      console.log('Status filter being sent:', statusFilter);
       
       const response = await API.documents.getDocuments({ 
         page: 1, 
@@ -58,6 +60,7 @@ export default function Articles() {
       });
       
       console.log('API Response:', response);
+      console.log('Response data:', response.data);
 
       let fetchedArticles = [];
 
@@ -78,6 +81,9 @@ export default function Articles() {
         }
       }
 
+      console.log('Fetched articles count:', fetchedArticles.length);
+      console.log('Fetched articles:', fetchedArticles);
+
       const transformedArticles = fetchedArticles.map(article => {
         let featuredImageUrl = null;
 
@@ -91,15 +97,16 @@ export default function Articles() {
           }
         }
 
-        let formattedStatus = 'Draft';
+        // Keep status as lowercase for consistent filtering
+        let formattedStatus = 'draft';
         if (article.status === 'published') {
-          formattedStatus = 'Published';
+          formattedStatus = 'published';
         } else if (article.status === 'scheduled') {
-          formattedStatus = 'Scheduled';
+          formattedStatus = 'scheduled';
         } else if (article.status === 'draft') {
-          formattedStatus = 'Draft';
+          formattedStatus = 'draft';
         } else if (article.status === 'archived') {
-          formattedStatus = 'Archived';
+          formattedStatus = 'archived';
         }
 
         return {
@@ -129,6 +136,9 @@ export default function Articles() {
         };
       });
 
+      console.log('Transformed articles:', transformedArticles);
+      console.log('Draft articles in transformed:', transformedArticles.filter(a => a.status === 'draft').length);
+      
       setArticles(transformedArticles);
 
     } catch (error) {
@@ -341,7 +351,7 @@ export default function Articles() {
             >
               ✓ Published
               <span className="ml-2 px-2 py-0.5 text-xs rounded-full bg-slate-100 text-slate-600">
-                {articles.filter(a => a.status === 'Published' || a.status === 'published').length}
+                {articles.filter(a => a.status === 'published').length}
               </span>
             </button>
             
@@ -355,7 +365,7 @@ export default function Articles() {
             >
               📝 Draft
               <span className="ml-2 px-2 py-0.5 text-xs rounded-full bg-slate-100 text-slate-600">
-                {articles.filter(a => a.status === 'Draft' || a.status === 'draft').length}
+                {articles.filter(a => a.status === 'draft').length}
               </span>
             </button>
             
@@ -369,7 +379,7 @@ export default function Articles() {
             >
               ⏰ Scheduled
               <span className="ml-2 px-2 py-0.5 text-xs rounded-full bg-slate-100 text-slate-600">
-                {articles.filter(a => a.status === 'Scheduled' || a.status === 'scheduled').length}
+                {articles.filter(a => a.status === 'scheduled').length}
               </span>
             </button>
           </div>
