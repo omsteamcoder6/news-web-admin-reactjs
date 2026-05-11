@@ -211,19 +211,34 @@ export const mediaAPI = {
   getMediaFile: (id) => apiClient.get(`/media/${id}`),
   deleteMediaFile: (id) => apiClient.delete(`/media/${id}`),
 
-  // ✅ FIXED: getImageUrl function
+  // ✅ FIXED: getImageUrl — replaces stored localhost URLs with correct MEDIA_BASE_URL
   getImageUrl: (filePath) => {
     if (!filePath) return null;
-    
-    // If it's already an absolute URL, return as is
+
+    // If it's an absolute URL pointing to localhost/127.0.0.1,
+    // extract only the path and rebuild with the correct MEDIA_BASE_URL
     if (filePath.startsWith('http://') || filePath.startsWith('https://')) {
+      try {
+        const parsed = new URL(filePath);
+        const isLocal =
+          parsed.hostname === 'localhost' ||
+          parsed.hostname === '127.0.0.1' ||
+          parsed.hostname.startsWith('192.168.');
+
+        if (isLocal && MEDIA_BASE_URL) {
+          // Replace the localhost origin with the configured MEDIA_BASE_URL
+          const fixedUrl = `${MEDIA_BASE_URL}${parsed.pathname}`;
+          console.log('[mediaAPI.getImageUrl] Replaced localhost URL:', filePath, '→', fixedUrl);
+          return fixedUrl;
+        }
+      } catch (e) {
+        // If URL parsing fails, fall through to return as-is
+      }
       return filePath;
     }
-    
-    // Ensure proper path formatting
+
+    // Relative path — prepend MEDIA_BASE_URL
     const cleanPath = filePath.startsWith('/') ? filePath : `/${filePath}`;
-    
-    // Use MEDIA_BASE_URL (which now prefers VITE_IMAGE_BASE_URL)
     const fullUrl = `${MEDIA_BASE_URL}${cleanPath}`;
     console.log('[mediaAPI.getImageUrl] Generated URL:', fullUrl);
     return fullUrl;
@@ -252,17 +267,27 @@ export const mediaAPI = {
   },
 };
 
-// Helper function to get full image URL (for use in components)
-// ✅ FIXED: This function now properly uses VITE_IMAGE_BASE_URL
+// ✅ FIXED: getFullImageUrl — same localhost replacement logic
 export const getFullImageUrl = (imagePath) => {
   if (!imagePath) return null;
-  
-  // If it's already an absolute URL, return as is
+
   if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
+    try {
+      const parsed = new URL(imagePath);
+      const isLocal =
+        parsed.hostname === 'localhost' ||
+        parsed.hostname === '127.0.0.1' ||
+        parsed.hostname.startsWith('192.168.');
+
+      if (isLocal && MEDIA_BASE_URL) {
+        const fixedUrl = `${MEDIA_BASE_URL}${parsed.pathname}`;
+        console.log('[getFullImageUrl] Replaced localhost URL:', imagePath, '→', fixedUrl);
+        return fixedUrl;
+      }
+    } catch (e) {}
     return imagePath;
   }
-  
-  // Use MEDIA_BASE_URL
+
   const cleanPath = imagePath.startsWith('/') ? imagePath : `/${imagePath}`;
   const fullUrl = `${MEDIA_BASE_URL}${cleanPath}`;
   console.log('[getFullImageUrl] Generated URL:', fullUrl);
