@@ -6,7 +6,7 @@ import { X, Loader2, Crown, Unlock, Upload, FileText } from "lucide-react";
 import { toast } from "react-hot-toast";
 
 // Get backend URL from environment variables
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:3001";
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
 
 function resolvePreviewUrl(url) {
   if (!url) return "";

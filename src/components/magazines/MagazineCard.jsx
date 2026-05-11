@@ -9,9 +9,9 @@ import { MagazineService } from "../../lib/magazineService";
 // ============================================
 // THIS IS WHERE VITE_IMAGE_BASE_URL IS CONNECTED
 // ============================================
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:3001";
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3001/api";
-const IMAGE_BASE_URL = import.meta.env.VITE_IMAGE_BASE_URL || "http://localhost:3001";
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL ;
+const API_URL = import.meta.env.VITE_API_URL ;
+const IMAGE_BASE_URL = import.meta.env.VITE_IMAGE_BASE_URL;
 
 // FIXED - SIMPLE VERSION - Just add base URL to database path
 function resolveImageUrl(url) {

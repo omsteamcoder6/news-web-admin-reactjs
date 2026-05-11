@@ -4,7 +4,7 @@ import AdvertisingInquiryAPI from '../../lib/advertisingInquiryApi';
 import { useAuthStore } from '../../stores/authStore';
 
 // Get API URL from .env file
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+const API_URL = import.meta.env.VITE_API_URL;
 
 // NO LIMIT - Shows all inquiries
 const DEFAULT_OPTIONS = { page: 1, limit: null };

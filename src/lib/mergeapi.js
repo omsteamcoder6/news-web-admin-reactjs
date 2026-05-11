@@ -1,35 +1,51 @@
-// mergeapi.js - Complete API service for the application
+// mergeapi.js - Complete API service for the application with VITE_IMAGE_BASE_URL support
 import axios from 'axios';
 
-// Base URL configuration - Fixed for browser environment
+// Base URL configuration - Uses environment variables only
 const getApiBaseUrl = () => {
-  if (typeof process !== 'undefined' && process.env && process.env.REACT_APP_API_URL) {
-    return process.env.REACT_APP_API_URL;
-  }
+  // Check for Vite environment variable first
   if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_URL) {
     return import.meta.env.VITE_API_URL;
   }
-  if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-    return 'http://localhost:3001/api';
+  // Check for React environment variable
+  if (typeof process !== 'undefined' && process.env && process.env.REACT_APP_API_URL) {
+    return process.env.REACT_APP_API_URL;
   }
+  // Default fallback
   return '/api';
 };
 
 const getMediaBaseUrl = () => {
-  if (typeof process !== 'undefined' && process.env && process.env.REACT_APP_API_URL) {
-    return process.env.REACT_APP_API_URL.replace('/api', '');
+  // ✅ FIXED: Use VITE_IMAGE_BASE_URL if available (highest priority)
+  if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_IMAGE_BASE_URL) {
+    console.log('[mergeapi] Using VITE_IMAGE_BASE_URL:', import.meta.env.VITE_IMAGE_BASE_URL);
+    return import.meta.env.VITE_IMAGE_BASE_URL;
   }
+  
+  // Fallback to VITE_API_URL without /api
   if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_URL) {
     return import.meta.env.VITE_API_URL.replace('/api', '');
   }
-  if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-    return 'http://localhost:3001';
+  
+  // Check for React environment variable
+  if (typeof process !== 'undefined' && process.env && process.env.REACT_APP_API_URL) {
+    return process.env.REACT_APP_API_URL.replace('/api', '');
   }
+  
+  // Default fallback
   return '';
 };
 
 const API_BASE_URL = getApiBaseUrl();
 const MEDIA_BASE_URL = getMediaBaseUrl();
+
+// Log the configuration for debugging
+if (typeof window !== 'undefined') {
+  console.log('[mergeapi] API_BASE_URL:', API_BASE_URL);
+  console.log('[mergeapi] MEDIA_BASE_URL:', MEDIA_BASE_URL);
+  console.log('[mergeapi] VITE_API_URL:', typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_URL);
+  console.log('[mergeapi] VITE_IMAGE_BASE_URL:', typeof import.meta !== 'undefined' && import.meta.env?.VITE_IMAGE_BASE_URL);
+}
 
 // FIX: Read the token from wherever it might be stored.
 const getAuthToken = () => {
@@ -61,47 +77,51 @@ const apiClient = axios.create({
   timeout: 120000,
 });
 
-// Request interceptor
 apiClient.interceptors.request.use(
   (config) => {
-    const token = getAuthToken();
+    // Get token from all possible locations
+    let token =
+      localStorage.getItem('token') ||
+      sessionStorage.getItem('token');
+
+    // Zustand persisted auth
+    if (!token) {
+      try {
+        const authStorage = localStorage.getItem('auth-storage');
+        if (authStorage) {
+          const parsed = JSON.parse(authStorage);
+          token = parsed?.state?.token || parsed?.token;
+        }
+      } catch (err) {
+        console.error('Token parse error:', err);
+      }
+    }
+
+    // Attach token
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     } else {
-      console.warn('[mergeapi] No auth token found – request will be unauthenticated.');
+      if (process.env.NODE_ENV === 'development') {
+        console.warn('NO TOKEN FOUND for request:', config.url);
+      }
     }
+
     return config;
   },
   (error) => Promise.reject(error)
 );
 
-// Response interceptor
-apiClient.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    if (error.response?.status === 401) {
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      localStorage.removeItem('auth-storage');
-      sessionStorage.removeItem('token');
-      window.dispatchEvent(new Event('auth-logout'));
-      window.location.href = '/login';
-    }
-    return Promise.reject(error);
-  }
-);
-
 // ==================== AUTHENTICATION APIS ====================
 
 export const authAPI = {
-  register:        (userData)                  => apiClient.post('/auth/register', userData),
-  login:           (credentials)               => apiClient.post('/auth/login', credentials),
-  logout:          ()                          => apiClient.post('/auth/logout'),
-  getCurrentUser:  ()                          => apiClient.get('/auth/me'),
-  updateProfile:   (userData)                  => apiClient.put('/auth/updatedetails', userData),
-  updatePassword:  (passwordData)              => apiClient.put('/auth/updatepassword', passwordData),
-  forgotPassword:  (email)                     => apiClient.post('/auth/forgotpassword', { email }),
-  resetPassword:   (resetToken, newPassword)   =>
+  register: (userData) => apiClient.post('/auth/register', userData),
+  login: (credentials) => apiClient.post('/auth/login', credentials),
+  logout: () => apiClient.post('/auth/logout'),
+  getCurrentUser: () => apiClient.get('/auth/me'),
+  updateProfile: (userData) => apiClient.put('/auth/updatedetails', userData),
+  updatePassword: (passwordData) => apiClient.put('/auth/updatepassword', passwordData),
+  forgotPassword: (email) => apiClient.post('/auth/forgotpassword', { email }),
+  resetPassword: (resetToken, newPassword) =>
     apiClient.put(`/auth/resetpassword/${resetToken}`, { password: newPassword }),
 };
 
@@ -125,12 +145,12 @@ export const documentAPI = {
     return apiClient.get(`/documents${qs}`);
   },
 
-  getDocument:    (id)                => apiClient.get(`/documents/${id}`),
-  getDocumentBySlug: (slug)           => apiClient.get(`/documents/slug/${slug}`),
-  updateDocument: (id, documentData)  => apiClient.put(`/documents/${id}`, documentData),
-  deleteDocument: (id)                => apiClient.delete(`/documents/${id}`),
-  saveAsDraft:    (id, content)       => apiClient.post(`/documents/${id}/save-draft`, { content }),
-  publishDocument:(id)                => apiClient.post(`/documents/${id}/publish`),
+  getDocument: (id) => apiClient.get(`/documents/${id}`),
+  getDocumentBySlug: (slug) => apiClient.get(`/documents/slug/${slug}`),
+  updateDocument: (id, documentData) => apiClient.put(`/documents/${id}`, documentData),
+  deleteDocument: (id) => apiClient.delete(`/documents/${id}`),
+  saveAsDraft: (id, content) => apiClient.post(`/documents/${id}/save-draft`, { content }),
+  publishDocument: (id) => apiClient.post(`/documents/${id}/publish`),
 };
 
 // ==================== MEDIA APIS ====================
@@ -188,42 +208,79 @@ export const mediaAPI = {
     return apiClient.get(`/media${qs}`);
   },
 
-  getMediaFile:    (id)  => apiClient.get(`/media/${id}`),
-  deleteMediaFile: (id)  => apiClient.delete(`/media/${id}`),
+  getMediaFile: (id) => apiClient.get(`/media/${id}`),
+  deleteMediaFile: (id) => apiClient.delete(`/media/${id}`),
 
+  // ✅ FIXED: getImageUrl function
   getImageUrl: (filePath) => {
     if (!filePath) return null;
-    if (filePath.startsWith('http')) return filePath;
+    
+    // If it's already an absolute URL, return as is
+    if (filePath.startsWith('http://') || filePath.startsWith('https://')) {
+      return filePath;
+    }
+    
     // Ensure proper path formatting
     const cleanPath = filePath.startsWith('/') ? filePath : `/${filePath}`;
-    return `${MEDIA_BASE_URL}${cleanPath}`;
+    
+    // Use MEDIA_BASE_URL (which now prefers VITE_IMAGE_BASE_URL)
+    const fullUrl = `${MEDIA_BASE_URL}${cleanPath}`;
+    console.log('[mediaAPI.getImageUrl] Generated URL:', fullUrl);
+    return fullUrl;
   },
 
   getThumbnailUrl: (mediaItem) => {
+    if (!mediaItem) return null;
+    
     if (mediaItem?.thumbnailUrl) {
-      if (mediaItem.thumbnailUrl.startsWith('http')) return mediaItem.thumbnailUrl;
-      return `${MEDIA_BASE_URL}${mediaItem.thumbnailUrl}`;
+      if (mediaItem.thumbnailUrl.startsWith('http://') || mediaItem.thumbnailUrl.startsWith('https://')) {
+        return mediaItem.thumbnailUrl;
+      }
+      const cleanPath = mediaItem.thumbnailUrl.startsWith('/') ? mediaItem.thumbnailUrl : `/${mediaItem.thumbnailUrl}`;
+      return `${MEDIA_BASE_URL}${cleanPath}`;
     }
+    
     if (mediaItem?.url) {
-      if (mediaItem.url.startsWith('http')) return mediaItem.url;
-      return `${MEDIA_BASE_URL}${mediaItem.url}`;
+      if (mediaItem.url.startsWith('http://') || mediaItem.url.startsWith('https://')) {
+        return mediaItem.url;
+      }
+      const cleanPath = mediaItem.url.startsWith('/') ? mediaItem.url : `/${mediaItem.url}`;
+      return `${MEDIA_BASE_URL}${cleanPath}`;
     }
+    
     return null;
   },
+};
+
+// Helper function to get full image URL (for use in components)
+// ✅ FIXED: This function now properly uses VITE_IMAGE_BASE_URL
+export const getFullImageUrl = (imagePath) => {
+  if (!imagePath) return null;
+  
+  // If it's already an absolute URL, return as is
+  if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
+    return imagePath;
+  }
+  
+  // Use MEDIA_BASE_URL
+  const cleanPath = imagePath.startsWith('/') ? imagePath : `/${imagePath}`;
+  const fullUrl = `${MEDIA_BASE_URL}${cleanPath}`;
+  console.log('[getFullImageUrl] Generated URL:', fullUrl);
+  return fullUrl;
 };
 
 // ==================== COMBINED API EXPORTS ====================
 
 const API = {
-  auth:      authAPI,
+  auth: authAPI,
   documents: documentAPI,
-  media:     mediaAPI,
+  media: mediaAPI,
 
-  get:    apiClient.get.bind(apiClient),
-  post:   apiClient.post.bind(apiClient),
-  put:    apiClient.put.bind(apiClient),
+  get: apiClient.get.bind(apiClient),
+  post: apiClient.post.bind(apiClient),
+  put: apiClient.put.bind(apiClient),
   delete: apiClient.delete.bind(apiClient),
-  patch:  apiClient.patch.bind(apiClient),
+  patch: apiClient.patch.bind(apiClient),
 
   setAuthToken: (token) => {
     if (token) {
@@ -259,6 +316,12 @@ const API = {
     }
     return null;
   },
+  
+  // Helper to get the current media base URL
+  getMediaBaseUrl: () => MEDIA_BASE_URL,
+  
+  // Helper to get the current API base URL
+  getApiBaseUrl: () => API_BASE_URL,
 };
 
 export default API;

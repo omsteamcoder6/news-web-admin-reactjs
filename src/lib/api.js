@@ -2,8 +2,15 @@ import axios from 'axios'
 import { useAuthStore } from '../stores/authStore'
 
 // FIXED: Using Vite environment variable
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api'
+const API_BASE_URL =
+  import.meta.env.VITE_API_URL 
 
+console.log('=== ENV DEBUG ===');
+console.log('All env vars:', import.meta.env);
+console.log('VITE_API_URL:', import.meta.env.VITE_API_URL);
+console.log('Is VITE_API_URL defined?', typeof import.meta.env.VITE_API_URL !== 'undefined');
+console.log('Value:', import.meta.env.VITE_API_URL);
+console.log('================');
 export const apiClient = axios.create({
   baseURL: API_BASE_URL,
   headers: {

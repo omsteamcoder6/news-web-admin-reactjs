@@ -1,4 +1,4 @@
-// ArticlesList.jsx - Complete Updated Version with unlimited articles display
+// ArticlesList.jsx - Complete Updated Version with VITE_IMAGE_BASE_URL
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -74,16 +74,51 @@ const getCategoryName = (category) => {
   return 'Uncategorized';
 };
 
-// Helper function to get full image URL
+// ✅ FIXED: Helper function to format ISO date strings into readable dates
+const formatDate = (raw) => {
+  if (!raw) return '-';
+  try {
+    return new Date(raw).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+    });
+  } catch {
+    return raw;
+  }
+};
+
+// ✅ FIXED: Helper function to get full image URL using VITE_IMAGE_BASE_URL
 const getFullImageUrl = (imagePath) => {
   if (!imagePath) return null;
+
+  const imageBaseUrl = (import.meta.env.VITE_IMAGE_BASE_URL || '').replace(/\/$/, '');
+
+  // If it's a localhost URL, strip the old host and rebuild with VITE_IMAGE_BASE_URL
+  // This fixes cases where images were saved with a different port (e.g. 3001 vs 3002)
+  if (imagePath.startsWith('http://localhost') || imagePath.startsWith('https://localhost')) {
+    try {
+      const url = new URL(imagePath);
+      const cleanPath = url.pathname; // e.g. /uploads/images/filename.avif
+      return imageBaseUrl ? `${imageBaseUrl}${cleanPath}` : imagePath;
+    } catch {
+      return imagePath;
+    }
+  }
+
+  // If it's already a non-localhost absolute URL, return as-is
   if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
     return imagePath;
   }
-  const baseUrl = typeof window !== 'undefined' && window.location.hostname === 'localhost'
-    ? 'http://localhost:3001'
-    : '';
-  return `${baseUrl}${imagePath.startsWith('/') ? imagePath : `/${imagePath}`}`;
+
+  // Relative path — prepend base URL
+  if (!imageBaseUrl) {
+    console.warn('VITE_IMAGE_BASE_URL is not defined. Please check your .env file');
+    return `${window.location.origin}${imagePath.startsWith('/') ? imagePath : `/${imagePath}`}`;
+  }
+
+  const normalizedPath = imagePath.startsWith('/') ? imagePath : `/${imagePath}`;
+  return `${imageBaseUrl}${normalizedPath}`;
 };
 
 export default function ArticlesList({ articles, onNewArticle, onDeleteArticle, onEditArticle, onPreviewArticle }) {
@@ -98,9 +133,11 @@ export default function ArticlesList({ articles, onNewArticle, onDeleteArticle, 
   useEffect(() => {
     console.log('ArticlesList received articles:', articles);
     console.log('Articles count:', articles?.length);
+    console.log('VITE_IMAGE_BASE_URL:', import.meta.env.VITE_IMAGE_BASE_URL);
     if (articles && articles.length > 0) {
       console.log('First article structure:', articles[0]);
-      console.log('First article image:', articles[0].featuredImage);
+      console.log('First article image path:', articles[0].featuredImage);
+      console.log('First article full image URL:', getFullImageUrl(articles[0].featuredImage));
     }
   }, [articles]);
 
@@ -267,7 +304,13 @@ export default function ArticlesList({ articles, onNewArticle, onDeleteArticle, 
                   const isDeleting = deletingId === articleId;
                   const showConfirm = showDeleteConfirm === articleId;
                   const hasImageError = imageErrors[articleId];
-                  const imageUrl = getFullImageUrl(article.featuredImage);
+                  const imageUrl = getFullImageUrl(
+                    article.featuredImage ||
+                    article.image ||
+                    article.thumbnail ||
+                    article.coverImage ||
+                    article.imageUrl
+                  );
                   
                   return (
                     <tr key={articleId || index} className="border-b border-slate-100 hover:bg-slate-50 transition">
@@ -276,7 +319,7 @@ export default function ArticlesList({ articles, onNewArticle, onDeleteArticle, 
                           {imageUrl && !hasImageError ? (
                             <img 
                               src={imageUrl}
-                              alt={article.title}
+                              alt={article.title || 'Article image'}
                               className="w-full h-full object-cover"
                               onError={() => handleImageError(articleId, imageUrl)}
                               onLoad={() => console.log('Image loaded successfully:', imageUrl)}
@@ -312,8 +355,9 @@ export default function ArticlesList({ articles, onNewArticle, onDeleteArticle, 
                           <span className="text-sm">{(article.views || 0).toLocaleString()}</span>
                         </div>
                       </td>
+                      {/* ✅ FIXED: Format ISO date string to readable date */}
                       <td className="px-4 py-4 text-sm text-slate-600">
-                        {article.publishDate || article.createdAt || article.date || '-'}
+                        {formatDate(article.publishDate || article.createdAt || article.date)}
                       </td>
                       <td className="px-4 py-4 text-center">
                         {showConfirm ? (

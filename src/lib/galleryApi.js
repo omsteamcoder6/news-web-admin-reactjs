@@ -3,7 +3,7 @@ import axios from 'axios';
 import { useAuthStore } from '../stores/authStore'; // Adjust path as needed
 
 // CHANGE THIS LINE for Vite:
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+const API_BASE_URL = import.meta.env.VITE_API_URL ;
 
 // Create axios instance for JSON requests (GET, DELETE, etc.)
 const api = axios.create({
@@ -476,7 +476,7 @@ export const getImageUrl = (imagePath) => {
   if (!imagePath) return '/placeholder-image.jpg';
   if (imagePath.startsWith('http')) return imagePath;
   // For Vite, you might need to adjust this
-  const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+  const baseUrl = import.meta.env.VITE_API_URL ;
   return `${baseUrl.replace('/api', '')}${imagePath}`;
 };
 

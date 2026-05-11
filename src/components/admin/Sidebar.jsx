@@ -10,6 +10,7 @@ import { cn } from '../../lib/utils'
 const menuItems = [
   { label: 'Dashboard', href: '/admin', icon: LayoutDashboard, section: 'MENU' },
   { label: 'News Management', href: '/admin/articles', icon: FileText, section: 'MENU' },
+  { label: 'Header', href: '/admin/header', icon: Tag, section: 'MENU' },
   { label: 'Categories', href: '/admin/categories', icon: Tag, section: 'MENU' },
   { label: 'Authors', href: '/admin/authors', icon: Users, section: 'MENU' },
   { label: 'Multimedia', href: '/admin/multimedia', icon: Images, section: 'MENU' },

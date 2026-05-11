@@ -4,7 +4,7 @@
 import { useAuthStore } from '../stores/authStore'; // Adjust path as needed
 
 // Fix: Use Vite's import.meta.env instead of process.env
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+const API_BASE_URL = import.meta.env.VITE_API_URL;
 class AwardAPI {
   constructor() {
     this.baseURL = API_BASE_URL;

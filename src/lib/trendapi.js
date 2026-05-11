@@ -1,7 +1,7 @@
 // trendapi.js - UPDATED with boolean logic for Live News
 import { useAuthStore } from '../stores/authStore';
 
-// ✅ FIXED: Dynamic API base URL — no more hardcoded localhost
+// ✅ FIXED: Dynamic API base URL — no localhost fallback
 const API_BASE_URL = (() => {
   if (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_URL) {
     return import.meta.env.VITE_API_URL;
@@ -9,12 +9,7 @@ const API_BASE_URL = (() => {
   if (typeof process !== 'undefined' && process.env?.REACT_APP_API_URL) {
     return process.env.REACT_APP_API_URL;
   }
-  if (
-    typeof window !== 'undefined' &&
-    (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
-  ) {
-    return 'http://localhost:3001/api';
-  }
+  // Default fallback (assumes proxy or relative path)
   return '/api';
 })();
 

@@ -1,4 +1,4 @@
-// CreateArticleForm.jsx - Fully Updated with Robust Error Handling & Guaranteed Field Display
+// CreateArticleForm.jsx - UPDATED: Changed publishDate to scheduledFor
 import { useState, useEffect } from 'react';
 import { X, Save, Upload, Calendar, Tag, User, FolderOpen, Edit, Image as ImageIcon, Trash2, TrendingUp } from 'lucide-react';
 import TinyMCEEditor from '../texteditor/TinyMCEEditor';
@@ -88,7 +88,7 @@ export default function CreateArticleForm({ onSubmit, onCancel, initialData = nu
     category: initialData?.category || '',
     author: initialData?.author || user?._id || '',
     tags: initialData?.tags || '',
-    publishDate: initialData?.publishDate || '',
+    scheduledFor: initialData?.scheduledFor || '',  // ✅ CHANGED: publishDate → scheduledFor
     image: null,
     excerpt: initialData?.excerpt || '',
     metaDescription: initialData?.metaDescription || '',
@@ -108,6 +108,10 @@ export default function CreateArticleForm({ onSubmit, onCancel, initialData = nu
     if (initialData?.isLiveNews !== undefined) {
       setIsLiveNewsEnabled(initialData.isLiveNews);
       setFormData(prev => ({ ...prev, isLiveNews: initialData.isLiveNews }));
+    }
+    // ✅ CHANGED: Also set scheduledFor from initialData
+    if (initialData?.scheduledFor) {
+      setFormData(prev => ({ ...prev, scheduledFor: initialData.scheduledFor }));
     }
   }, [initialData]);
 
@@ -135,12 +139,10 @@ export default function CreateArticleForm({ onSubmit, onCancel, initialData = nu
 
       if (categoriesArray.length === 0) {
         console.warn('No active categories found. Please create a category first.');
-        // Don't set error here - just warn, form should still show
       }
 
     } catch (error) {
       console.error('Error fetching categories:', error);
-      // Don't block the form - just show a warning but keep form usable
       setCategories([]);
     } finally {
       setLoadingCategories(false);
@@ -185,7 +187,6 @@ export default function CreateArticleForm({ onSubmit, onCancel, initialData = nu
         setTrendingBarData(response.data);
         setTrendingItems(response.data.items || []);
       } else {
-        // Default trending items if none exist
         const defaultItems = [
           { title: 'மிஸ்டர் கழகு', isActive: true, order: 0 },
           { title: 'உயக வாக்குறுதி?', isActive: true, order: 1 },
@@ -198,11 +199,9 @@ export default function CreateArticleForm({ onSubmit, onCancel, initialData = nu
           { title: 'புதிய அரசு திட்டம்', isActive: true, order: 8 }
         ];
         setTrendingItems(defaultItems);
-        // Don't auto-save, just use defaults
       }
     } catch (error) {
       console.error('Error fetching trending bar:', error);
-      // Set default trending items so dropdown works
       setTrendingItems([
         { _id: '1', title: 'மிஸ்டர் கழகு', isActive: true, order: 0 },
         { _id: '2', title: 'உயக வாக்குறுதி?', isActive: true, order: 1 },
@@ -331,7 +330,6 @@ export default function CreateArticleForm({ onSubmit, onCancel, initialData = nu
     setIsLiveNewsEnabled(newValue);
     setFormData(prev => ({ ...prev, isLiveNews: newValue }));
 
-    // Show feedback message
     if (newValue) {
       setSuccessMessage('✅ Live News will be published when you save');
     } else {
@@ -445,12 +443,12 @@ export default function CreateArticleForm({ onSubmit, onCancel, initialData = nu
         tags: articleData.tags ? articleData.tags.split(',').map(tag => tag.trim()) : [],
         excerpt: articleData.excerpt || articleData.content.substring(0, 160).replace(/<[^>]*>/g, ''),
         featuredImage: articleData.featuredImage || null,
-        publishDate: articleData.publishDate || (articleData.status === 'published' ? new Date().toISOString() : null),
+        scheduledFor: articleData.scheduledFor || (articleData.status === 'published' ? new Date().toISOString() : null), // ✅ CHANGED: publishDate → scheduledFor
         trendingTopicId: articleData.trendingTopic || null,
         isLiveNews: articleData.isLiveNews === true
       };
 
-      console.log('Sending document data:', { trendingTopicId: documentData.trendingTopicId, isLiveNews: documentData.isLiveNews });
+      console.log('Sending document data:', { scheduledFor: documentData.scheduledFor, isLiveNews: documentData.isLiveNews });
       const response = await API.documents.createDocument(documentData);
       return response.data;
     } catch (err) {
@@ -470,12 +468,12 @@ export default function CreateArticleForm({ onSubmit, onCancel, initialData = nu
         tags: articleData.tags ? articleData.tags.split(',').map(tag => tag.trim()) : [],
         excerpt: articleData.excerpt || articleData.content.substring(0, 160).replace(/<[^>]*>/g, ''),
         featuredImage: articleData.featuredImage || articleData.existingFeaturedImage || null,
-        publishDate: articleData.publishDate || (articleData.status === 'published' ? new Date().toISOString() : null),
+        scheduledFor: articleData.scheduledFor || (articleData.status === 'published' ? new Date().toISOString() : null), // ✅ CHANGED: publishDate → scheduledFor
         trendingTopicId: articleData.trendingTopic || null,
         isLiveNews: articleData.isLiveNews
       };
 
-      console.log('Updating article with trendingTopicId:', documentData.trendingTopicId);
+      console.log('Updating article with scheduledFor:', documentData.scheduledFor);
       const response = await API.documents.updateDocument(id, documentData);
       return response.data;
     } catch (err) {
@@ -985,23 +983,23 @@ export default function CreateArticleForm({ onSubmit, onCancel, initialData = nu
               </CardContent>
             </Card>
 
-            {/* Publish Date */}
+            {/* Scheduled Date Field - UPDATED LABEL */}
             <Card>
               <CardHeader>
                 <CardTitle>
                   <Calendar className="w-4 h-4 inline mr-2" />
-                  Publish Date
+                  Scheduled Date
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 <Input
-                  name="publishDate"
+                  name="scheduledFor"  // ✅ CHANGED: publishDate → scheduledFor
                   type="datetime-local"
-                  value={formData.publishDate}
+                  value={formData.scheduledFor}
                   onChange={handleInputChange}
                 />
                 <p className="text-xs text-slate-500 mt-1">
-                  Set a future date to schedule publication
+                  Set a future date to schedule publication. Leave empty for draft or publish now.
                 </p>
               </CardContent>
             </Card>
