@@ -19,7 +19,7 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL;
-const MEDIA_BASE_URL = import.meta.env.VITE_MEDIA_BASE_URL || 'http://localhost:3002';
+const MEDIA_BASE_URL = import.meta.env.VITE_MEDIA_BASE_URL;
 
 // Sortable Item Component
 function SortableNavItem({ item, index, onEdit, onDelete, onToggleActive, editingItem, setEditingItem, updateNavItem }) {
