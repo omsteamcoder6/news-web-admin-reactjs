@@ -1,4 +1,4 @@
-// mergeapi.js - Complete API service for the application with VITE_IMAGE_BASE_URL support
+// lib/mergeapi.js - Complete API service for the application with VITE_IMAGE_BASE_URL support
 import axios from 'axios';
 
 // Base URL configuration - Uses environment variables only
@@ -132,7 +132,7 @@ export const documentAPI = {
     apiClient.post('/documents', documentData),
 
   getDocuments: (params = {}) => {
-    const { page = 1, limit, status, search, category, author } = params;
+    const { page = 1, limit, status, search, category, author, worldNews, liveNews } = params;
     let qs = `?page=${page}`;
     // Only add limit if explicitly provided
     if (limit !== undefined && limit !== null) {
@@ -142,6 +142,10 @@ export const documentAPI = {
     if (search) qs += `&search=${encodeURIComponent(search)}`;
     if (category) qs += `&category=${category}`;
     if (author) qs += `&author=${author}`;
+    // ✅ World News filter
+    if (worldNews === true) qs += `&worldNews=true`;
+    // ✅ Live News filter
+    if (liveNews === true) qs += `&liveNews=true`;
     return apiClient.get(`/documents${qs}`);
   },
 
@@ -151,14 +155,44 @@ export const documentAPI = {
   deleteDocument: (id) => apiClient.delete(`/documents/${id}`),
   saveAsDraft: (id, content) => apiClient.post(`/documents/${id}/save-draft`, { content }),
   publishDocument: (id) => apiClient.post(`/documents/${id}/publish`),
+  
+  // ✅ Toggle World News status
+  toggleWorldNews: (id) => apiClient.put(`/documents/${id}/toggle-world-news`),
+};
+
+// ==================== WORLD NEWS APIS ====================
+
+export const worldNewsAPI = {
+  // Get all world news articles
+  getWorldNews: (params = {}) => {
+    const { page = 1, limit = 10 } = params;
+    return apiClient.get(`/documents/world-news/list?page=${page}&limit=${limit}`);
+  },
+  
+  // Toggle world news status for an article
+  toggleWorldNews: (id) => apiClient.put(`/documents/${id}/toggle-world-news`),
+  
+  // Get world news by category
+  getWorldNewsByCategory: (categoryId, params = {}) => {
+    const { page = 1, limit = 10 } = params;
+    return apiClient.get(`/documents?worldNews=true&category=${categoryId}&page=${page}&limit=${limit}`);
+  },
+  
+  // Get world news count
+  getWorldNewsCount: async () => {
+    const response = await apiClient.get('/documents?worldNews=true&limit=1');
+    return response.data.pagination?.total || 0;
+  },
 };
 
 // ==================== MEDIA APIS ====================
 
 export const mediaAPI = {
+  // ✅ FIXED: Changed field name from 'file' to 'image' to match backend expectation
   uploadFile: async (file, onProgress) => {
     const formData = new FormData();
-    formData.append('file', file);
+    // ✅ CORRECT: Backend expects 'image' field name (from upload.js: const uploadFile = upload.single('image'))
+    formData.append('image', file);
 
     const token = getAuthToken();
 
@@ -211,7 +245,7 @@ export const mediaAPI = {
   getMediaFile: (id) => apiClient.get(`/media/${id}`),
   deleteMediaFile: (id) => apiClient.delete(`/media/${id}`),
 
-  // ✅ FIXED: getImageUrl — replaces stored localhost URLs with correct MEDIA_BASE_URL
+  // ✅ getImageUrl — replaces stored localhost URLs with correct MEDIA_BASE_URL
   getImageUrl: (filePath) => {
     if (!filePath) return null;
 
@@ -267,7 +301,7 @@ export const mediaAPI = {
   },
 };
 
-// ✅ FIXED: getFullImageUrl — same localhost replacement logic
+// ✅ getFullImageUrl — same localhost replacement logic
 export const getFullImageUrl = (imagePath) => {
   if (!imagePath) return null;
 
@@ -294,12 +328,40 @@ export const getFullImageUrl = (imagePath) => {
   return fullUrl;
 };
 
+// ==================== CATEGORY APIS ====================
+
+export const categoryAPI = {
+  getCategories: (params = {}) => {
+    const { status } = params;
+    let qs = '';
+    if (status) qs += `?status=${status}`;
+    return apiClient.get(`/categories${qs}`);
+  },
+  getCategory: (id) => apiClient.get(`/categories/${id}`),
+  createCategory: (data) => apiClient.post('/categories', data),
+  updateCategory: (id, data) => apiClient.put(`/categories/${id}`, data),
+  deleteCategory: (id) => apiClient.delete(`/categories/${id}`),
+};
+
+// ==================== AUTHOR APIS ====================
+
+export const authorAPI = {
+  getAuthors: () => apiClient.get('/authors'),
+  getAuthor: (id) => apiClient.get(`/authors/${id}`),
+  createAuthor: (data) => apiClient.post('/authors', data),
+  updateAuthor: (id, data) => apiClient.put(`/authors/${id}`, data),
+  deleteAuthor: (id) => apiClient.delete(`/authors/${id}`),
+};
+
 // ==================== COMBINED API EXPORTS ====================
 
 const API = {
   auth: authAPI,
   documents: documentAPI,
   media: mediaAPI,
+  worldNews: worldNewsAPI,
+  categories: categoryAPI,
+  authors: authorAPI,
 
   get: apiClient.get.bind(apiClient),
   post: apiClient.post.bind(apiClient),

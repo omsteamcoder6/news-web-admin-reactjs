@@ -21,9 +21,13 @@ import {
   CheckSquare,
   Send
 } from 'lucide-react';
+import { useAuthStore } from '../../stores/authStore';
+
+const API_BASE_URL = import.meta.env.VITE_API_URL;
 
 export default function NominationDashboard() {
   const [nominations, setNominations] = useState([]);
+  const [awards, setAwards] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -31,152 +35,121 @@ export default function NominationDashboard() {
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedNomination, setSelectedNomination] = useState(null);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [stats, setStats] = useState({
+    total: 0,
+    pendingPayment: 0,
+    awaitingVerification: 0,
+    confirmed: 0,
+    totalRevenue: 0
+  });
   
+  const { token } = useAuthStore();
   const itemsPerPage = 10;
 
-  // Mock data - Replace with your API call
+  // Fetch nominations from API
   useEffect(() => {
-    const fetchNominations = async () => {
-      setLoading(true);
-      // Simulate API delay
-      setTimeout(() => {
-        const mockData = [
-          {
-            id: "NOM-001",
-            awardName: "Best Startup Award",
-            awardId: 1,
-            applicantName: "Rajesh Kumar",
-            email: "rajesh@techstartup.com",
-            phone: "+91 98765 43210",
-            companyName: "TechInnovate Solutions",
-            position: "CEO & Founder",
-            nominationDate: "2024-03-15",
-            paymentStatus: "paid",
-            paymentAmount: 499.00,
-            paymentId: "PAY_123456",
-            paymentDate: "2024-03-16",
-            adminStatus: "pending_verification",
-            nominationStatement: "Revolutionized the local e-commerce space with AI-driven personalization...",
-            documents: ["resume.pdf", "portfolio.pdf"],
-            reviewedBy: null,
-            reviewedAt: null,
-            confirmedAt: null
-          },
-          {
-            id: "NOM-002",
-            awardName: "Excellence in Technology",
-            awardId: 2,
-            applicantName: "Priya Sharma",
-            email: "priya@aiinnovations.com",
-            phone: "+91 87654 32109",
-            companyName: "AI Innovations Pvt Ltd",
-            position: "CTO",
-            nominationDate: "2024-03-10",
-            paymentStatus: "paid",
-            paymentAmount: 499.00,
-            paymentId: "PAY_123457",
-            paymentDate: "2024-03-11",
-            adminStatus: "confirmed",
-            nominationStatement: "Developed breakthrough AI model for healthcare diagnosis...",
-            documents: ["research.pdf", "certificate.pdf"],
-            reviewedBy: "Admin User",
-            reviewedAt: "2024-03-12",
-            confirmedAt: "2024-03-13"
-          },
-          {
-            id: "NOM-003",
-            awardName: "Business Leadership Award",
-            awardId: 3,
-            applicantName: "Amit Patel",
-            email: "amit@globalcorp.com",
-            phone: "+91 76543 21098",
-            companyName: "Global Corp Industries",
-            position: "Managing Director",
-            nominationDate: "2024-03-05",
-            paymentStatus: "pending",
-            paymentAmount: 499.00,
-            paymentId: null,
-            paymentDate: null,
-            adminStatus: "awaiting_payment",
-            nominationStatement: "Led company to achieve 200% growth in 2 years...",
-            documents: ["leadership.pdf"],
-            reviewedBy: null,
-            reviewedAt: null,
-            confirmedAt: null
-          },
-          {
-            id: "NOM-004",
-            awardName: "Customer Service Excellence",
-            awardId: 4,
-            applicantName: "Sneha Reddy",
-            email: "sneha@customersfirst.com",
-            phone: "+91 65432 10987",
-            companyName: "Customers First Solutions",
-            position: "Customer Experience Head",
-            nominationDate: "2024-03-18",
-            paymentStatus: "paid",
-            paymentAmount: 499.00,
-            paymentId: "PAY_123458",
-            paymentDate: "2024-03-19",
-            adminStatus: "pending_verification",
-            nominationStatement: "Reduced customer complaints by 75% through innovative training...",
-            documents: ["report.pdf", "testimonials.pdf"],
-            reviewedBy: null,
-            reviewedAt: null,
-            confirmedAt: null
-          },
-          {
-            id: "NOM-005",
-            awardName: "Best Startup Award",
-            awardId: 1,
-            applicantName: "Vikram Singh",
-            email: "vikram@greenenergy.com",
-            phone: "+91 54321 09876",
-            companyName: "Green Energy Solutions",
-            position: "Co-Founder",
-            nominationDate: "2024-03-12",
-            paymentStatus: "failed",
-            paymentAmount: 499.00,
-            paymentId: "PAY_123459",
-            paymentDate: "2024-03-12",
-            adminStatus: "payment_failed",
-            nominationStatement: "Pioneered affordable solar solutions for rural areas...",
-            documents: ["project_report.pdf"],
-            reviewedBy: null,
-            reviewedAt: null,
-            confirmedAt: null
-          }
-        ];
-        setNominations(mockData);
-        setLoading(false);
-      }, 500);
-    };
-
     fetchNominations();
+    fetchAwards();
   }, []);
+
+  const fetchAwards = async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/awards`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      const data = await response.json();
+      if (data.success) {
+        setAwards(data.data);
+      }
+    } catch (error) {
+      console.error('Error fetching awards:', error);
+    }
+  };
+
+  const fetchNominations = async () => {
+    setLoading(true);
+    try {
+      // Fetch nominations from your NominationPayment model
+      const response = await fetch(`${API_BASE_URL}/razorpay/nominations`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        const formattedNominations = data.data.map(nom => ({
+          id: nom.nominationId,
+          nominationId: nom.nominationId,
+          awardId: nom.awardId?._id || nom.awardId,
+          awardName: nom.awardId?.name || 'Unknown Award',
+          applicantName: nom.nomineeName,
+          email: nom.nomineeEmail,
+          phone: nom.nomineePhone,
+          companyName: nom.businessName || 'N/A',
+          position: 'Nominee',
+          nominationDate: new Date(nom.createdAt).toISOString().split('T')[0],
+          paymentStatus: nom.paymentStatus,
+          paymentAmount: nom.amount,
+          paymentId: nom.paymentId,
+          paymentDate: nom.paymentCompletedAt ? new Date(nom.paymentCompletedAt).toISOString().split('T')[0] : null,
+          adminStatus: getAdminStatusFromNominationStatus(nom.nominationStatus, nom.paymentStatus),
+          nominationStatement: nom.description,
+          documents: [],
+          reviewedBy: null,
+          reviewedAt: null,
+          confirmedAt: nom.paymentCompletedAt,
+          razorpayOrderId: nom.razorpayOrderId,
+          signature: nom.signature
+        }));
+        
+        setNominations(formattedNominations);
+        calculateStats(formattedNominations);
+      }
+    } catch (error) {
+      console.error('Error fetching nominations:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getAdminStatusFromNominationStatus = (nominationStatus, paymentStatus) => {
+    if (paymentStatus === 'pending') return 'awaiting_payment';
+    if (paymentStatus === 'failed') return 'payment_failed';
+    if (nominationStatus === 'pending') return 'pending_verification';
+    if (nominationStatus === 'approved') return 'confirmed';
+    if (nominationStatus === 'shortlisted') return 'shortlisted';
+    if (nominationStatus === 'winner') return 'winner';
+    return 'pending_verification';
+  };
+
+  const calculateStats = (nominationsList) => {
+    const total = nominationsList.length;
+    const pendingPayment = nominationsList.filter(n => n.paymentStatus === 'pending').length;
+    const awaitingVerification = nominationsList.filter(n => n.paymentStatus === 'completed' && n.adminStatus === 'pending_verification').length;
+    const confirmed = nominationsList.filter(n => n.adminStatus === 'confirmed').length;
+    const totalRevenue = nominationsList.filter(n => n.paymentStatus === 'completed').reduce((sum, n) => sum + n.paymentAmount, 0);
+    
+    setStats({ total, pendingPayment, awaitingVerification, confirmed, totalRevenue });
+  };
 
   // Get unique awards for filter
   const uniqueAwards = [...new Map(nominations.map(n => [n.awardId, n.awardName])).values()];
   
-  // Stats calculations
-  const stats = {
-    total: nominations.length,
-    pendingPayment: nominations.filter(n => n.paymentStatus === "pending" || n.adminStatus === "awaiting_payment").length,
-    awaitingVerification: nominations.filter(n => n.paymentStatus === "paid" && n.adminStatus === "pending_verification").length,
-    confirmed: nominations.filter(n => n.adminStatus === "confirmed").length,
-    totalRevenue: nominations.filter(n => n.paymentStatus === "paid").reduce((sum, n) => sum + n.paymentAmount, 0)
-  };
-
   // Filter nominations
   const filteredNominations = nominations.filter(nom => {
     const matchesSearch = 
-      nom.applicantName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      nom.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      nom.companyName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      nom.id.toLowerCase().includes(searchTerm.toLowerCase());
+      nom.applicantName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      nom.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      nom.companyName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      nom.id?.toLowerCase().includes(searchTerm.toLowerCase());
     
     const matchesStatus = statusFilter === "all" || nom.adminStatus === statusFilter;
-    const matchesAward = awardFilter === "all" || nom.awardId.toString() === awardFilter;
+    const matchesAward = awardFilter === "all" || nom.awardId === awardFilter;
     
     return matchesSearch && matchesStatus && matchesAward;
   });
@@ -189,50 +162,88 @@ export default function NominationDashboard() {
   );
 
   // Admin Actions
-  const handleVerifyPayment = (nomination) => {
-    if (window.confirm(`Verify payment for ${nomination.applicantName}?`)) {
-      // TODO: API call to verify payment
-      setNominations(prev => prev.map(n => 
-        n.id === nomination.id 
-          ? { ...n, adminStatus: "pending_verification", paymentStatus: "paid" }
-          : n
-      ));
-      alert("Payment verified! Ready for confirmation.");
-    }
-  };
-
-  const handleConfirmNomination = (nomination) => {
-    if (window.confirm(`Confirm nomination for ${nomination.applicantName}? This will send a confirmation email.`)) {
-      // TODO: API call to confirm nomination
-      setNominations(prev => prev.map(n => 
-        n.id === nomination.id 
-          ? { 
-              ...n, 
-              adminStatus: "confirmed",
-              confirmedAt: new Date().toISOString().split('T')[0],
-              reviewedBy: "Admin User",
-              reviewedAt: new Date().toISOString().split('T')[0]
-            }
-          : n
-      ));
-      alert("Nomination confirmed! Email sent to applicant.");
-    }
-  };
-
-  const handleRejectNomination = (nomination) => {
-    const reason = prompt("Enter rejection reason (will be sent to applicant):");
-    if (reason) {
-      if (window.confirm(`Reject nomination for ${nomination.applicantName}?`)) {
-        // TODO: API call to reject
-        setNominations(prev => prev.filter(n => n.id !== nomination.id));
-        alert(`Nomination rejected. Reason sent to ${nomination.email}`);
+  const handleConfirmNomination = async (nomination) => {
+    if (window.confirm(`Confirm nomination for ${nomination.applicantName}? This will update the nomination status.`)) {
+      try {
+        const response = await fetch(`${API_BASE_URL}/razorpay/nomination/${nomination.id}/confirm`, {
+          method: 'PUT',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            nominationStatus: 'approved'
+          })
+        });
+        
+        const data = await response.json();
+        if (data.success) {
+          alert("Nomination confirmed successfully!");
+          fetchNominations(); // Refresh the list
+          setShowDetailsModal(false);
+        } else {
+          alert(data.message || "Failed to confirm nomination");
+        }
+      } catch (error) {
+        console.error('Error confirming nomination:', error);
+        alert("Error confirming nomination");
       }
     }
   };
 
-  const handleSendReminder = (nomination) => {
-    // TODO: API call to send payment reminder
-    alert(`Payment reminder sent to ${nomination.email}`);
+  const handleRejectNomination = async (nomination) => {
+    const reason = prompt("Enter rejection reason:");
+    if (reason) {
+      if (window.confirm(`Reject nomination for ${nomination.applicantName}?`)) {
+        try {
+          const response = await fetch(`${API_BASE_URL}/razorpay/nomination/${nomination.id}/reject`, {
+            method: 'PUT',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              nominationStatus: 'rejected',
+              rejectionReason: reason
+            })
+          });
+          
+          const data = await response.json();
+          if (data.success) {
+            alert(`Nomination rejected.`);
+            fetchNominations(); // Refresh the list
+            setShowDetailsModal(false);
+          } else {
+            alert(data.message || "Failed to reject nomination");
+          }
+        } catch (error) {
+          console.error('Error rejecting nomination:', error);
+          alert("Error rejecting nomination");
+        }
+      }
+    }
+  };
+
+  const handleSendReminder = async (nomination) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/razorpay/nomination/${nomination.id}/reminder`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      const data = await response.json();
+      if (data.success) {
+        alert(`Payment reminder sent to ${nomination.email}`);
+      } else {
+        alert(data.message || "Failed to send reminder");
+      }
+    } catch (error) {
+      console.error('Error sending reminder:', error);
+      alert("Error sending reminder");
+    }
   };
 
   const handleViewDetails = (nomination) => {
@@ -245,7 +256,9 @@ export default function NominationDashboard() {
       pending_verification: { color: "bg-yellow-100 text-yellow-800", text: "Pending Verification", icon: Clock },
       awaiting_payment: { color: "bg-orange-100 text-orange-800", text: "Awaiting Payment", icon: Clock },
       confirmed: { color: "bg-green-100 text-green-800", text: "Confirmed", icon: CheckCircle },
-      payment_failed: { color: "bg-red-100 text-red-800", text: "Payment Failed", icon: XCircle }
+      payment_failed: { color: "bg-red-100 text-red-800", text: "Payment Failed", icon: XCircle },
+      shortlisted: { color: "bg-blue-100 text-blue-800", text: "Shortlisted", icon: CheckCircle },
+      winner: { color: "bg-purple-100 text-purple-800", text: "Winner", icon: Award }
     };
     const badge = badges[status] || badges.pending_verification;
     const Icon = badge.icon;
@@ -255,6 +268,31 @@ export default function NominationDashboard() {
         {badge.text}
       </span>
     );
+  };
+
+  const handleExportCSV = () => {
+    const headers = ['Nomination ID', 'Applicant Name', 'Email', 'Phone', 'Company', 'Award', 'Amount', 'Payment Status', 'Nomination Status', 'Date'];
+    const csvData = filteredNominations.map(nom => [
+      nom.id,
+      nom.applicantName,
+      nom.email,
+      nom.phone,
+      nom.companyName,
+      nom.awardName,
+      nom.paymentAmount,
+      nom.paymentStatus,
+      nom.adminStatus,
+      nom.nominationDate
+    ]);
+    
+    const csvContent = [headers, ...csvData].map(row => row.join(',')).join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `nominations_${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+    window.URL.revokeObjectURL(url);
   };
 
   if (loading) {
@@ -276,7 +314,10 @@ export default function NominationDashboard() {
           <h2 className="text-2xl font-bold text-gray-900">Nomination Management</h2>
           <p className="text-gray-500 text-sm mt-1">View and manage all award nominations, payments, and confirmations</p>
         </div>
-        <button className="bg-gray-100 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-200 transition flex items-center gap-2">
+        <button 
+          onClick={handleExportCSV}
+          className="bg-gray-100 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-200 transition flex items-center gap-2"
+        >
           <Download className="w-4 h-4" />
           Export Report
         </button>
@@ -364,7 +405,7 @@ export default function NominationDashboard() {
           >
             <option value="all">All Awards</option>
             {uniqueAwards.map(award => (
-              <option key={award} value={award.split(' ')[0]}>{award}</option>
+              <option key={award} value={award}>{award}</option>
             ))}
           </select>
         </div>
@@ -428,7 +469,7 @@ export default function NominationDashboard() {
                           <Mail className="w-4 h-4" />
                         </button>
                       )}
-                      {nom.paymentStatus === "paid" && nom.adminStatus === "pending_verification" && (
+                      {nom.paymentStatus === "completed" && nom.adminStatus === "pending_verification" && (
                         <button
                           onClick={() => handleConfirmNomination(nom)}
                           className="p-1.5 text-green-600 hover:bg-green-50 rounded-lg transition"
@@ -514,10 +555,6 @@ export default function NominationDashboard() {
                   <p className="font-medium">{selectedNomination.applicantName}</p>
                 </div>
                 <div>
-                  <label className="text-xs text-gray-500">Position</label>
-                  <p>{selectedNomination.position}</p>
-                </div>
-                <div>
                   <label className="text-xs text-gray-500">Email</label>
                   <p className="text-blue-600">{selectedNomination.email}</p>
                 </div>
@@ -534,15 +571,25 @@ export default function NominationDashboard() {
                   <p>{selectedNomination.nominationDate}</p>
                 </div>
                 <div>
+                  <label className="text-xs text-gray-500">Payment Amount</label>
+                  <p className="font-semibold">₹{selectedNomination.paymentAmount}</p>
+                </div>
+                <div>
                   <label className="text-xs text-gray-500">Payment Status</label>
-                  <p className={`font-medium ${selectedNomination.paymentStatus === 'paid' ? 'text-green-600' : 'text-red-600'}`}>
-                    {selectedNomination.paymentStatus.toUpperCase()}
+                  <p className={`font-medium ${selectedNomination.paymentStatus === 'completed' ? 'text-green-600' : 'text-red-600'}`}>
+                    {selectedNomination.paymentStatus?.toUpperCase()}
                   </p>
                 </div>
                 {selectedNomination.paymentId && (
                   <div>
-                    <label className="text-xs text-gray-500">Transaction ID</label>
+                    <label className="text-xs text-gray-500">Payment ID</label>
                     <p className="font-mono text-sm">{selectedNomination.paymentId}</p>
+                  </div>
+                )}
+                {selectedNomination.razorpayOrderId && (
+                  <div>
+                    <label className="text-xs text-gray-500">Razorpay Order ID</label>
+                    <p className="font-mono text-sm">{selectedNomination.razorpayOrderId}</p>
                   </div>
                 )}
               </div>
@@ -552,23 +599,10 @@ export default function NominationDashboard() {
                 <p className="text-sm bg-gray-50 p-3 rounded-lg mt-1">{selectedNomination.nominationStatement}</p>
               </div>
 
-              {selectedNomination.documents && (
-                <div>
-                  <label className="text-xs text-gray-500">Documents</label>
-                  <div className="flex gap-2 mt-1">
-                    {selectedNomination.documents.map((doc, i) => (
-                      <button key={i} className="text-sm text-blue-600 hover:underline">
-                        📄 {doc}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
               {selectedNomination.confirmedAt && (
                 <div className="bg-green-50 p-3 rounded-lg">
                   <p className="text-sm text-green-800">
-                    ✅ Confirmed on {selectedNomination.confirmedAt} by {selectedNomination.reviewedBy}
+                    ✅ Payment completed on {new Date(selectedNomination.confirmedAt).toLocaleDateString()}
                   </p>
                 </div>
               )}
@@ -584,7 +618,6 @@ export default function NominationDashboard() {
                 <button
                   onClick={() => {
                     handleConfirmNomination(selectedNomination);
-                    setShowDetailsModal(false);
                   }}
                   className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
                 >
@@ -595,7 +628,6 @@ export default function NominationDashboard() {
                 <button
                   onClick={() => {
                     handleSendReminder(selectedNomination);
-                    setShowDetailsModal(false);
                   }}
                   className="flex-1 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700"
                 >

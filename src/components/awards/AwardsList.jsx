@@ -1,6 +1,9 @@
 import { useState, useEffect } from "react";
-import { Edit2, Trash2, Eye, Trophy } from 'lucide-react';
+import { Edit2, Trash2, Eye, Trophy, Image as ImageIcon } from 'lucide-react';
 import awardAPI from "../../lib/awrdapi";
+
+const API_BASE_URL = import.meta.env.VITE_API_URL || '';
+const SERVER_BASE_URL = API_BASE_URL.replace(/\/api\/?$/, '');
 
 export default function AwardsList({ searchTerm = "", statusFilter = "all", onEditClick, refreshTrigger }) {
   const [awards, setAwards] = useState([]);
@@ -24,13 +27,10 @@ export default function AwardsList({ searchTerm = "", statusFilter = "all", onEd
       };
       
       const response = await awardAPI.getAwards(params);
-      setAwards(response.data || response.awards || []);
-      setTotalPages(response.totalPages || Math.ceil((response.total || 0) / itemsPerPage));
+      setAwards(response.data || []);
+      setTotalPages(response.pagination?.pages || 1);
     } catch (error) {
       console.error("Error fetching awards:", error);
-      if (error.status === 401) {
-        // Redirect to login or show message
-      }
     } finally {
       setLoading(false);
     }
@@ -40,7 +40,7 @@ export default function AwardsList({ searchTerm = "", statusFilter = "all", onEd
     if (window.confirm("Are you sure you want to delete this award?")) {
       try {
         await awardAPI.deleteAward(id);
-        fetchAwards(); // Refresh list
+        fetchAwards();
       } catch (error) {
         console.error("Error deleting award:", error);
         alert(error.message || "Failed to delete award");
@@ -52,11 +52,6 @@ export default function AwardsList({ searchTerm = "", statusFilter = "all", onEd
     if (onEditClick) {
       onEditClick(award);
     }
-  };
-
-  const handleViewSubmissions = (id) => {
-    // Navigate to nominations page with award filter
-    console.log("View submissions for award:", id);
   };
 
   if (loading) {
@@ -76,7 +71,7 @@ export default function AwardsList({ searchTerm = "", statusFilter = "all", onEd
         <table className="w-full">
           <thead className="bg-gray-50 border-b">
             <tr>
-              <th className="text-left p-4 font-semibold text-gray-700 text-sm">ID</th>
+              <th className="text-left p-4 font-semibold text-gray-700 text-sm">Cover</th>
               <th className="text-left p-4 font-semibold text-gray-700 text-sm">Award Name</th>
               <th className="text-left p-4 font-semibold text-gray-700 text-sm">Description</th>
               <th className="text-left p-4 font-semibold text-gray-700 text-sm">Fee</th>
@@ -87,8 +82,20 @@ export default function AwardsList({ searchTerm = "", statusFilter = "all", onEd
           </thead>
           <tbody>
             {awards.map((award) => (
-              <tr key={award.id} className="border-b hover:bg-gray-50 transition">
-                <td className="p-4 text-gray-600 text-sm">#{award.id}</td>
+              <tr key={award._id} className="border-b hover:bg-gray-50 transition">
+                <td className="p-4">
+                  {award.coverImage ? (
+                    <img 
+                      src={`${SERVER_BASE_URL}${award.coverImage}`} 
+                      alt={award.name}
+                      className="w-12 h-12 object-cover rounded-lg"
+                    />
+                  ) : (
+                    <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center">
+                      <ImageIcon className="w-5 h-5 text-gray-400" />
+                    </div>
+                  )}
+                </td>
                 <td className="p-4">
                   <div className="flex items-center gap-2">
                     <Trophy className="w-4 h-4 text-gray-400" />
@@ -103,7 +110,7 @@ export default function AwardsList({ searchTerm = "", statusFilter = "all", onEd
                 </td>
                 <td className="p-4">
                   <span className="bg-blue-100 text-blue-700 px-2 py-1 rounded-full text-xs font-medium">
-                    {award.totalNominations || award._count?.nominations || 0} submissions
+                    {award.totalNominations || 0} submissions
                   </span>
                 </td>
                 <td className="p-4">
@@ -125,14 +132,7 @@ export default function AwardsList({ searchTerm = "", statusFilter = "all", onEd
                       <Edit2 className="w-4 h-4" />
                     </button>
                     <button
-                      onClick={() => handleViewSubmissions(award.id)}
-                      className="p-1.5 text-green-600 hover:bg-green-50 rounded-lg transition"
-                      title="View Submissions"
-                    >
-                      <Eye className="w-4 h-4" />
-                    </button>
-                    <button
-                      onClick={() => handleDelete(award.id)}
+                      onClick={() => handleDelete(award._id)}
                       className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition"
                       title="Delete Award"
                     >
@@ -154,7 +154,6 @@ export default function AwardsList({ searchTerm = "", statusFilter = "all", onEd
         </div>
       )}
 
-      {/* Pagination */}
       {totalPages > 1 && (
         <div className="flex justify-between items-center p-4 border-t bg-gray-50">
           <button

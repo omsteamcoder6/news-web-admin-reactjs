@@ -1,6 +1,6 @@
-// CreateArticleForm.jsx - UPDATED: Changed publishDate to scheduledFor
+// CreateArticleForm.jsx - UPDATED: Added World News Quick Select Button
 import { useState, useEffect } from 'react';
-import { X, Save, Upload, Calendar, Tag, User, FolderOpen, Edit, Image as ImageIcon, Trash2, TrendingUp } from 'lucide-react';
+import { X, Save, Upload, Calendar, Tag, User, FolderOpen, Edit, Image as ImageIcon, Trash2, TrendingUp, Globe } from 'lucide-react';
 import TinyMCEEditor from '../texteditor/TinyMCEEditor';
 import categoryAPI from '../../lib/categapi';
 import authorApi from '../../lib/authorApi';
@@ -88,7 +88,7 @@ export default function CreateArticleForm({ onSubmit, onCancel, initialData = nu
     category: initialData?.category || '',
     author: initialData?.author || user?._id || '',
     tags: initialData?.tags || '',
-    scheduledFor: initialData?.scheduledFor || '',  // ✅ CHANGED: publishDate → scheduledFor
+    scheduledFor: initialData?.scheduledFor || '',
     image: null,
     excerpt: initialData?.excerpt || '',
     metaDescription: initialData?.metaDescription || '',
@@ -109,7 +109,6 @@ export default function CreateArticleForm({ onSubmit, onCancel, initialData = nu
       setIsLiveNewsEnabled(initialData.isLiveNews);
       setFormData(prev => ({ ...prev, isLiveNews: initialData.isLiveNews }));
     }
-    // ✅ CHANGED: Also set scheduledFor from initialData
     if (initialData?.scheduledFor) {
       setFormData(prev => ({ ...prev, scheduledFor: initialData.scheduledFor }));
     }
@@ -338,6 +337,59 @@ export default function CreateArticleForm({ onSubmit, onCancel, initialData = nu
     setTimeout(() => setSuccessMessage(null), 3000);
   };
 
+  // World News Quick Select Handler - WITH AUTO-CREATE
+  const handleWorldNewsSelect = async () => {
+    let worldNewsCategory = categories.find(
+      cat => cat.name?.toLowerCase() === 'world news' ||
+        cat.name?.toLowerCase() === 'world' ||
+        cat.name?.toLowerCase() === 'worldnews'
+    );
+
+    if (worldNewsCategory) {
+      setFormData(prev => ({
+        ...prev,
+        category: worldNewsCategory._id || worldNewsCategory.id
+      }));
+      setSuccessMessage('🌍 World News category selected successfully!');
+      setTimeout(() => setSuccessMessage(null), 2000);
+    } else {
+      // Ask if user wants to create the category
+      const shouldCreate = confirm(
+        '❌ "World News" category not found.\n\nWould you like to create it now?'
+      );
+
+      if (shouldCreate) {
+        try {
+          setSubmitting(true);
+          // Create the category using your categoryAPI
+          const newCategory = await categoryAPI.createCategory({
+            name: 'World News',
+            slug: 'world-news',
+            status: 'Active',
+            icon: '🌍'
+          });
+
+          // Refresh categories list
+          await fetchCategories();
+
+          // Select the newly created category
+          setFormData(prev => ({
+            ...prev,
+            category: newCategory._id || newCategory.id
+          }));
+          setSuccessMessage('✅ "World News" category created and selected!');
+          setTimeout(() => setSuccessMessage(null), 3000);
+        } catch (err) {
+          console.error('Error creating category:', err);
+          setError('Failed to create World News category. Please create it manually in Categories section.');
+          setTimeout(() => setError(null), 5000);
+        } finally {
+          setSubmitting(false);
+        }
+      }
+    }
+  };
+
   const handleInputChange = (e) => {
     const { name, value, type, files } = e.target;
 
@@ -443,7 +495,7 @@ export default function CreateArticleForm({ onSubmit, onCancel, initialData = nu
         tags: articleData.tags ? articleData.tags.split(',').map(tag => tag.trim()) : [],
         excerpt: articleData.excerpt || articleData.content.substring(0, 160).replace(/<[^>]*>/g, ''),
         featuredImage: articleData.featuredImage || null,
-        scheduledFor: articleData.scheduledFor || (articleData.status === 'published' ? new Date().toISOString() : null), // ✅ CHANGED: publishDate → scheduledFor
+        scheduledFor: articleData.scheduledFor || (articleData.status === 'published' ? new Date().toISOString() : null),
         trendingTopicId: articleData.trendingTopic || null,
         isLiveNews: articleData.isLiveNews === true
       };
@@ -468,7 +520,7 @@ export default function CreateArticleForm({ onSubmit, onCancel, initialData = nu
         tags: articleData.tags ? articleData.tags.split(',').map(tag => tag.trim()) : [],
         excerpt: articleData.excerpt || articleData.content.substring(0, 160).replace(/<[^>]*>/g, ''),
         featuredImage: articleData.featuredImage || articleData.existingFeaturedImage || null,
-        scheduledFor: articleData.scheduledFor || (articleData.status === 'published' ? new Date().toISOString() : null), // ✅ CHANGED: publishDate → scheduledFor
+        scheduledFor: articleData.scheduledFor || (articleData.status === 'published' ? new Date().toISOString() : null),
         trendingTopicId: articleData.trendingTopic || null,
         isLiveNews: articleData.isLiveNews
       };
@@ -860,21 +912,33 @@ export default function CreateArticleForm({ onSubmit, onCancel, initialData = nu
                     <p className="text-sm text-slate-500 mt-2">Loading categories...</p>
                   </div>
                 ) : categories.length > 0 ? (
-                  <select
-                    name="category"
-                    value={formData.category}
-                    onChange={handleInputChange}
-                    className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
-                    required
-                  >
-                    <option value="">Select Category</option>
-                    {categories.map((category) => (
-                      <option key={category._id || category.id} value={category._id || category.id}>
-                        {category.icon && <span className="mr-2">{category.icon}</span>}
-                        {category.name}
-                      </option>
-                    ))}
-                  </select>
+                  <>
+                    <select
+                      name="category"
+                      value={formData.category}
+                      onChange={handleInputChange}
+                      className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+                      required
+                    >
+                      <option value="">Select Category</option>
+                      {categories.map((category) => (
+                        <option key={category._id || category.id} value={category._id || category.id}>
+                          {category.icon && <span className="mr-2">{category.icon}</span>}
+                          {category.name}
+                        </option>
+                      ))}
+                    </select>
+
+                    {/* WORLD NEWS QUICK SELECT BUTTON - ADDED HERE */}
+                    <button
+                      type="button"
+                      onClick={handleWorldNewsSelect}
+                      className="w-full mt-3 px-4 py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-lg font-medium transition-colors flex items-center justify-center gap-2 border border-blue-200"
+                    >
+                      <Globe className="w-4 h-4" />
+                      🌍 Quick Select: World News
+                    </button>
+                  </>
                 ) : (
                   <div className="bg-yellow-50 border border-yellow-200 text-yellow-700 px-3 py-2 rounded-lg text-sm">
                     <p className="font-medium">⚠️ No categories available</p>
@@ -983,7 +1047,7 @@ export default function CreateArticleForm({ onSubmit, onCancel, initialData = nu
               </CardContent>
             </Card>
 
-            {/* Scheduled Date Field - UPDATED LABEL */}
+            {/* Scheduled Date Field */}
             <Card>
               <CardHeader>
                 <CardTitle>
@@ -993,7 +1057,7 @@ export default function CreateArticleForm({ onSubmit, onCancel, initialData = nu
               </CardHeader>
               <CardContent>
                 <Input
-                  name="scheduledFor"  // ✅ CHANGED: publishDate → scheduledFor
+                  name="scheduledFor"
                   type="datetime-local"
                   value={formData.scheduledFor}
                   onChange={handleInputChange}

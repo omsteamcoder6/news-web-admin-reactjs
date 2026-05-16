@@ -1,8 +1,8 @@
-// PublishedArticlesList.jsx - Shows only published articles with VITE_IMAGE_BASE_URL
+// PublishedArticlesList.jsx - Shows only published articles with World News support
 'use client';
 
 import { useState } from 'react';
-import { Plus, Search, Edit2, Trash2, Eye, FileText, Image as ImageIcon, Calendar, Archive, TrendingUp } from 'lucide-react';
+import { Plus, Search, Edit2, Trash2, Eye, FileText, Image as ImageIcon, Calendar, Archive, TrendingUp, Globe } from 'lucide-react';
 
 const Card = ({ children, className = "" }) => (
   <div className={`bg-white rounded-lg border border-slate-200 shadow-sm ${className}`}>
@@ -72,7 +72,6 @@ const getCategoryName = (category) => {
   return 'Uncategorized';
 };
 
-// ✅ FIXED: Helper function to format ISO date strings into readable dates
 const formatDate = (raw) => {
   if (!raw) return '-';
   try {
@@ -86,30 +85,25 @@ const formatDate = (raw) => {
   }
 };
 
-// ✅ FIXED: Helper function to get full image URL using VITE_IMAGE_BASE_URL
 const getFullImageUrl = (imagePath) => {
   if (!imagePath) return null;
 
   const imageBaseUrl = (import.meta.env.VITE_IMAGE_BASE_URL || '').replace(/\/$/, '');
 
-  // If it's a localhost URL, strip the old host and rebuild with VITE_IMAGE_BASE_URL
-  // This fixes cases where images were saved with a different port (e.g. 3001 vs 3002)
   if (imagePath.startsWith('http://localhost') || imagePath.startsWith('https://localhost')) {
     try {
       const url = new URL(imagePath);
-      const cleanPath = url.pathname; // e.g. /uploads/images/filename.avif
+      const cleanPath = url.pathname;
       return imageBaseUrl ? `${imageBaseUrl}${cleanPath}` : imagePath;
     } catch {
       return imagePath;
     }
   }
 
-  // If it's already a non-localhost absolute URL, return as-is
   if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
     return imagePath;
   }
 
-  // Relative path — prepend base URL
   if (!imageBaseUrl) {
     console.warn('VITE_IMAGE_BASE_URL is not defined. Please check your .env file');
     return `${window.location.origin}${imagePath.startsWith('/') ? imagePath : `/${imagePath}`}`;
@@ -126,15 +120,16 @@ export default function PublishedArticlesList({
   onEditArticle, 
   onPreviewArticle,
   onUnpublish,
-  onViewAnalytics 
+  onViewAnalytics,
+  onToggleWorldNews  // ✅ NEW: World News toggle handler
 }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('All Categories');
+  const [worldNewsFilter, setWorldNewsFilter] = useState('All'); // ✅ NEW: All, World News Only, Regular Only
   const [deletingId, setDeletingId] = useState(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(null);
   const [imageErrors, setImageErrors] = useState({});
 
-  // Filter only published articles
   const publishedArticles = Array.isArray(articles) 
     ? articles.filter(article => article.status === 'Published' || article.status === 'published')
     : [];
@@ -150,7 +145,15 @@ export default function PublishedArticlesList({
                           authorName.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesCategory = categoryFilter === 'All Categories' || categoryName === categoryFilter;
     
-    return matchesSearch && matchesCategory;
+    // ✅ NEW: World News filter
+    let matchesWorldNews = true;
+    if (worldNewsFilter === 'World News Only') {
+      matchesWorldNews = article.isWorldNews === true;
+    } else if (worldNewsFilter === 'Regular Only') {
+      matchesWorldNews = article.isWorldNews !== true;
+    }
+    
+    return matchesSearch && matchesCategory && matchesWorldNews;
   });
 
   const uniqueCategories = ['All Categories', ...new Set(
@@ -193,6 +196,13 @@ export default function PublishedArticlesList({
   const handleViewAnalytics = (article) => {
     if (onViewAnalytics) {
       onViewAnalytics(article);
+    }
+  };
+
+  // ✅ NEW: Toggle World News
+  const handleToggleWorldNews = (id, currentStatus) => {
+    if (onToggleWorldNews) {
+      onToggleWorldNews(id, !currentStatus);
     }
   };
 
@@ -257,6 +267,16 @@ export default function PublishedArticlesList({
                 <option key={category} value={category}>{category}</option>
               ))}
             </select>
+            {/* ✅ NEW: World News Filter Dropdown */}
+            <select 
+              className="px-4 py-2 border border-slate-200 rounded-lg bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-orange-500"
+              value={worldNewsFilter}
+              onChange={(e) => setWorldNewsFilter(e.target.value)}
+            >
+              <option value="All">All Articles</option>
+              <option value="World News Only">🌍 World News Only</option>
+              <option value="Regular Only">Regular Only</option>
+            </select>
           </div>
         </CardContent>
       </Card>
@@ -283,6 +303,7 @@ export default function PublishedArticlesList({
                   <th className="px-4 py-3 text-left text-sm font-semibold text-slate-600">Category</th>
                   <th className="px-4 py-3 text-left text-sm font-semibold text-slate-600">Author</th>
                   <th className="px-4 py-3 text-center text-sm font-semibold text-slate-600">Status</th>
+                  <th className="px-4 py-3 text-center text-sm font-semibold text-slate-600">World News</th>
                   <th className="px-4 py-3 text-center text-sm font-semibold text-slate-600">Views</th>
                   <th className="px-4 py-3 text-left text-sm font-semibold text-slate-600">Published Date</th>
                   <th className="px-4 py-3 text-center text-sm font-semibold text-slate-600">Actions</th>
@@ -333,13 +354,27 @@ export default function PublishedArticlesList({
                           Published
                         </span>
                       </td>
+                      {/* ✅ NEW: World News Badge and Toggle */}
+                      <td className="px-4 py-4 text-center">
+                        <button
+                          onClick={() => handleToggleWorldNews(articleId, article.isWorldNews)}
+                          className={`px-2 py-1 rounded-full text-xs font-semibold transition-colors flex items-center gap-1 mx-auto ${
+                            article.isWorldNews 
+                              ? 'bg-blue-100 text-blue-800 hover:bg-blue-200' 
+                              : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                          }`}
+                          title={article.isWorldNews ? 'Remove from World News' : 'Mark as World News'}
+                        >
+                          <Globe className="w-3 h-3" />
+                          {article.isWorldNews ? 'World News' : 'Mark'}
+                        </button>
+                      </td>
                       <td className="px-4 py-4 text-center">
                         <div className="flex items-center justify-center gap-1 text-slate-600">
                           <Eye className="w-4 h-4" />
                           <span className="text-sm">{(article.views || 0).toLocaleString()}</span>
                         </div>
                       </td>
-                      {/* ✅ FIXED: Format ISO date string to readable date */}
                       <td className="px-4 py-4 text-sm text-slate-600">
                         {formatDate(article.publishDate || article.createdAt || article.date)}
                       </td>
