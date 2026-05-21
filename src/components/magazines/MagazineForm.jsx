@@ -70,6 +70,19 @@ function buildFormState(data) {
       coverImagePreview: resolvePreviewUrl(data.coverImageUrl),
       pdfFile: null,
       pdfFileName: data.pdfFileName || "",
+      // SEO fields
+      metaTitle: data.metaTitle || "",
+      metaDescription: data.metaDescription || "",
+      metaKeywords: Array.isArray(data.metaKeywords) ? data.metaKeywords.join(", ") : (data.metaKeywords || ""),
+      canonicalUrl: data.canonicalUrl || "",
+      ogTitle: data.ogTitle || "",
+      ogDescription: data.ogDescription || "",
+      ogImage: data.ogImage || "",
+      twitterTitle: data.twitterTitle || "",
+      twitterDescription: data.twitterDescription || "",
+      twitterImage: data.twitterImage || "",
+      robots: data.robots || "index, follow",
+      schemaType: data.schemaType || "Article",
     };
   }
   return {
@@ -84,6 +97,19 @@ function buildFormState(data) {
     coverImagePreview: "",
     pdfFile: null,
     pdfFileName: "",
+    // SEO fields
+    metaTitle: "",
+    metaDescription: "",
+    metaKeywords: "",
+    canonicalUrl: "",
+    ogTitle: "",
+    ogDescription: "",
+    ogImage: "",
+    twitterTitle: "",
+    twitterDescription: "",
+    twitterImage: "",
+    robots: "index, follow",
+    schemaType: "Article",
   };
 }
 
@@ -149,7 +175,7 @@ export function MagazineForm({ isOpen, onClose, onSubmit, initialData }) {
       URL.revokeObjectURL(formData.coverImagePreview);
     }
     const previewUrl = URL.createObjectURL(file);
-    setFormData((prev) => ({ ...prev, coverImageFile: file, coverImagePreview: previewUrl }));
+    setFormData((prev) => ({ ...prev, coverImageFile: file, coverImagePreview: previewUrl, ogImage: previewUrl, twitterImage: previewUrl }));
   };
 
   const handleFileChange = async (e) => {
@@ -203,6 +229,12 @@ export function MagazineForm({ isOpen, onClose, onSubmit, initialData }) {
     e.preventDefault();
     if (!validateForm()) return;
 
+    // Parse metaKeywords from comma-separated string to array
+    let keywordsArray = [];
+    if (formData.metaKeywords) {
+      keywordsArray = formData.metaKeywords.split(",").map(k => k.trim()).filter(k => k);
+    }
+
     const submitData = {
       title: formData.title,
       slug: formData.slug,
@@ -213,6 +245,19 @@ export function MagazineForm({ isOpen, onClose, onSubmit, initialData }) {
       accessType: formData.accessType,
       coverImageFile: formData.coverImageFile,
       pdfFile: formData.pdfFile,
+      // SEO fields
+      metaTitle: formData.metaTitle,
+      metaDescription: formData.metaDescription,
+      metaKeywords: keywordsArray,
+      canonicalUrl: formData.canonicalUrl,
+      ogTitle: formData.ogTitle,
+      ogDescription: formData.ogDescription,
+      ogImage: formData.ogImage,
+      twitterTitle: formData.twitterTitle,
+      twitterDescription: formData.twitterDescription,
+      twitterImage: formData.twitterImage,
+      robots: formData.robots,
+      schemaType: formData.schemaType,
     };
 
     onSubmit(submitData);
@@ -243,6 +288,7 @@ export function MagazineForm({ isOpen, onClose, onSubmit, initialData }) {
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4 max-h-[70vh] overflow-y-auto pr-2">
+            {/* Cover Image */}
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">
                 Cover Image {initialData ? "(leave empty to keep current)" : "*"}
@@ -282,7 +328,7 @@ export function MagazineForm({ isOpen, onClose, onSubmit, initialData }) {
               </div>
             </div>
 
-            {/* Rest of your form fields remain the same */}
+            {/* Magazine Title */}
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">Magazine Title *</label>
               <input
@@ -296,6 +342,7 @@ export function MagazineForm({ isOpen, onClose, onSubmit, initialData }) {
               />
             </div>
 
+            {/* Slug */}
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">Slug *</label>
               <div className="flex gap-2">
@@ -320,6 +367,7 @@ export function MagazineForm({ isOpen, onClose, onSubmit, initialData }) {
               </div>
             </div>
 
+            {/* Description */}
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">Description *</label>
               <textarea
@@ -333,6 +381,7 @@ export function MagazineForm({ isOpen, onClose, onSubmit, initialData }) {
               />
             </div>
 
+            {/* Access Type */}
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-2">Access Type *</label>
               <div className="grid grid-cols-2 gap-3">
@@ -370,6 +419,7 @@ export function MagazineForm({ isOpen, onClose, onSubmit, initialData }) {
               </div>
             </div>
 
+            {/* Issue Date */}
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">Issue Date *</label>
               <input
@@ -382,6 +432,7 @@ export function MagazineForm({ isOpen, onClose, onSubmit, initialData }) {
               />
             </div>
 
+            {/* PDF File */}
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">
                 Magazine File (PDF) {initialData ? "(leave empty to keep current)" : "*"}
@@ -421,6 +472,7 @@ export function MagazineForm({ isOpen, onClose, onSubmit, initialData }) {
               {pdfError && <p className="text-xs text-red-500 mt-1">{pdfError}</p>}
             </div>
 
+            {/* Pages */}
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">
                 Number of Pages
@@ -437,6 +489,184 @@ export function MagazineForm({ isOpen, onClose, onSubmit, initialData }) {
               />
             </div>
 
+            {/* ============================================ */}
+            {/* SEO SECTION - ADDED */}
+            {/* ============================================ */}
+            <div className="border-t border-slate-200 pt-4 mt-2">
+              <h3 className="text-lg font-semibold text-slate-900 mb-3 flex items-center gap-2">
+                <span className="text-orange-500">🔍</span> SEO Settings
+              </h3>
+              <p className="text-sm text-slate-500 mb-4">
+                Optimize this magazine for search engines and social media
+              </p>
+
+              {/* Meta Title */}
+              <div className="mb-3">
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  Meta Title <span className="text-xs text-slate-400">(recommended: 50-60 chars)</span>
+                </label>
+                <input
+                  type="text"
+                  name="metaTitle"
+                  value={formData.metaTitle}
+                  onChange={handleChange}
+                  maxLength="70"
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+                  placeholder="SEO optimized title for search engines"
+                />
+                <p className="text-xs text-slate-400 mt-1">
+                  {formData.metaTitle?.length || 0}/70 characters
+                </p>
+              </div>
+
+              {/* Meta Description */}
+              <div className="mb-3">
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  Meta Description <span className="text-xs text-slate-400">(recommended: 150-160 chars)</span>
+                </label>
+                <textarea
+                  name="metaDescription"
+                  value={formData.metaDescription}
+                  onChange={handleChange}
+                  maxLength="160"
+                  rows="2"
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 resize-none"
+                  placeholder="Brief description that appears in search results"
+                />
+                <p className="text-xs text-slate-400 mt-1">
+                  {formData.metaDescription?.length || 0}/160 characters
+                </p>
+              </div>
+
+              {/* Meta Keywords */}
+              <div className="mb-3">
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  Meta Keywords <span className="text-xs text-slate-400">(comma separated)</span>
+                </label>
+                <input
+                  type="text"
+                  name="metaKeywords"
+                  value={formData.metaKeywords}
+                  onChange={handleChange}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+                  placeholder="magazine, digital, publishing, design"
+                />
+              </div>
+
+              {/* Canonical URL */}
+              <div className="mb-3">
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  Canonical URL
+                </label>
+                <input
+                  type="text"
+                  name="canonicalUrl"
+                  value={formData.canonicalUrl}
+                  onChange={handleChange}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+                  placeholder="https://yourdomain.com/magazine/slug"
+                />
+              </div>
+
+              {/* Robots */}
+              <div className="mb-3">
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  Robots Indexing
+                </label>
+                <select
+                  name="robots"
+                  value={formData.robots}
+                  onChange={handleChange}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+                >
+                  <option value="index, follow">Index, Follow (Default)</option>
+                  <option value="noindex, follow">No Index, Follow</option>
+                  <option value="index, nofollow">Index, No Follow</option>
+                  <option value="noindex, nofollow">No Index, No Follow</option>
+                </select>
+              </div>
+
+              {/* Schema Type */}
+              <div className="mb-3">
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  Schema Type (Structured Data)
+                </label>
+                <select
+                  name="schemaType"
+                  value={formData.schemaType}
+                  onChange={handleChange}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+                >
+                  <option value="Article">Article (Default)</option>
+                  <option value="Magazine">Magazine</option>
+                  <option value="Periodical">Periodical</option>
+                </select>
+              </div>
+
+              {/* Open Graph (Social Media) */}
+              <div className="bg-slate-50 p-3 rounded-lg mt-3">
+                <h4 className="text-sm font-semibold text-slate-800 mb-2 flex items-center gap-1">
+                  <span>📱</span> Social Media Preview (Open Graph)
+                </h4>
+                
+                <div className="mb-2">
+                  <label className="block text-xs font-medium text-slate-600 mb-1">OG Title</label>
+                  <input
+                    type="text"
+                    name="ogTitle"
+                    value={formData.ogTitle}
+                    onChange={handleChange}
+                    className="w-full px-2 py-1 text-sm border border-slate-300 rounded"
+                    placeholder="Title for Facebook/LinkedIn shares"
+                  />
+                </div>
+                
+                <div className="mb-2">
+                  <label className="block text-xs font-medium text-slate-600 mb-1">OG Description</label>
+                  <textarea
+                    name="ogDescription"
+                    value={formData.ogDescription}
+                    onChange={handleChange}
+                    rows="1"
+                    className="w-full px-2 py-1 text-sm border border-slate-300 rounded resize-none"
+                    placeholder="Description for social media shares"
+                  />
+                </div>
+              </div>
+
+              {/* Twitter Card */}
+              <div className="bg-slate-50 p-3 rounded-lg mt-2">
+                <h4 className="text-sm font-semibold text-slate-800 mb-2 flex items-center gap-1">
+                  <span>🐦</span> Twitter Card
+                </h4>
+                
+                <div className="mb-2">
+                  <label className="block text-xs font-medium text-slate-600 mb-1">Twitter Title</label>
+                  <input
+                    type="text"
+                    name="twitterTitle"
+                    value={formData.twitterTitle}
+                    onChange={handleChange}
+                    className="w-full px-2 py-1 text-sm border border-slate-300 rounded"
+                    placeholder="Title for Twitter shares"
+                  />
+                </div>
+                
+                <div className="mb-2">
+                  <label className="block text-xs font-medium text-slate-600 mb-1">Twitter Description</label>
+                  <textarea
+                    name="twitterDescription"
+                    value={formData.twitterDescription}
+                    onChange={handleChange}
+                    rows="1"
+                    className="w-full px-2 py-1 text-sm border border-slate-300 rounded resize-none"
+                    placeholder="Description for Twitter shares"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Form Buttons */}
             <div className="flex gap-2 pt-4">
               <Button type="button" variant="outline" onClick={onClose} className="flex-1">
                 Cancel

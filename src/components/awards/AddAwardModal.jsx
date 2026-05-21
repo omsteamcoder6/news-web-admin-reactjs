@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { X, Upload, Image as ImageIcon, Trash2 } from 'lucide-react';
+import { X, Upload, Image as ImageIcon, Trash2, ChevronDown, ChevronRight } from 'lucide-react';
 import awardAPI from "../../lib/awrdapi";
 import { useAuthStore } from "../../stores/authStore";
 
@@ -19,13 +19,23 @@ export default function AddAwardModal({
     fee: "",
     status: "active",
     displayOrder: "",
-    coverImage: null
+    coverImage: null,
+    seo: {
+      title: "",
+      metaTitle: "",
+      metaDescription: "",
+      canonicalUrl: "",
+      ogTitle: "",
+      ogDescription: "",
+      keywords: ""
+    }
   });
 
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
   const [coverImagePreview, setCoverImagePreview] = useState(null);
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [showSEO, setShowSEO] = useState(false);
 
   useEffect(() => {
     if (editingAward) {
@@ -35,7 +45,16 @@ export default function AddAwardModal({
         fee: editingAward.fee || "",
         status: editingAward.status || "active",
         displayOrder: editingAward.displayOrder || "",
-        coverImage: editingAward.coverImage || null
+        coverImage: editingAward.coverImage || null,
+        seo: {
+          title: editingAward.seo?.title || "",
+          metaTitle: editingAward.seo?.metaTitle || "",
+          metaDescription: editingAward.seo?.metaDescription || "",
+          canonicalUrl: editingAward.seo?.canonicalUrl || "",
+          ogTitle: editingAward.seo?.ogTitle || "",
+          ogDescription: editingAward.seo?.ogDescription || "",
+          keywords: editingAward.seo?.keywords?.join(", ") || ""
+        }
       });
       setCoverImagePreview(editingAward.coverImage || null);
     } else {
@@ -45,16 +64,37 @@ export default function AddAwardModal({
         fee: "",
         status: "active",
         displayOrder: "",
-        coverImage: null
+        coverImage: null,
+        seo: {
+          title: "",
+          metaTitle: "",
+          metaDescription: "",
+          canonicalUrl: "",
+          ogTitle: "",
+          ogDescription: "",
+          keywords: ""
+        }
       });
       setCoverImagePreview(null);
     }
     setErrors({});
+    setShowSEO(false);
   }, [editingAward, isOpen]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    
+    // Handle nested seo fields
+    if (name.startsWith('seo.')) {
+      const seoField = name.split('.')[1];
+      setFormData(prev => ({
+        ...prev,
+        seo: { ...prev.seo, [seoField]: value }
+      }));
+    } else {
+      setFormData(prev => ({ ...prev, [name]: value }));
+    }
+    
     if (errors[name]) {
       setErrors(prev => ({ ...prev, [name]: "" }));
     }
@@ -133,13 +173,27 @@ export default function AddAwardModal({
     setSubmitting(true);
     
     try {
+      // Process keywords from comma-separated string to array
+      const keywordsArray = formData.seo.keywords
+        ? formData.seo.keywords.split(',').map(k => k.trim()).filter(k => k)
+        : [];
+      
       const awardData = {
         name: formData.name,
         description: formData.description,
         fee: parseFloat(formData.fee),
         status: formData.status,
         displayOrder: formData.displayOrder ? parseInt(formData.displayOrder) : 0,
-        coverImage: formData.coverImage
+        coverImage: formData.coverImage,
+        seo: {
+          title: formData.seo.title || null,
+          metaTitle: formData.seo.metaTitle || null,
+          metaDescription: formData.seo.metaDescription || null,
+          canonicalUrl: formData.seo.canonicalUrl || null,
+          ogTitle: formData.seo.ogTitle || null,
+          ogDescription: formData.seo.ogDescription || null,
+          keywords: keywordsArray
+        }
       };
 
       if (editingAward) {
@@ -180,6 +234,7 @@ export default function AddAwardModal({
             </div>
           )}
 
+          {/* Cover Image */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Cover Image</label>
             <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center">
@@ -221,6 +276,7 @@ export default function AddAwardModal({
             </div>
           </div>
 
+          {/* Award Name */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Award Name <span className="text-red-500">*</span></label>
             <input 
@@ -234,6 +290,7 @@ export default function AddAwardModal({
             {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name}</p>}
           </div>
 
+          {/* Description */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Description <span className="text-red-500">*</span></label>
             <textarea 
@@ -247,6 +304,7 @@ export default function AddAwardModal({
             {errors.description && <p className="text-red-500 text-xs mt-1">{errors.description}</p>}
           </div>
 
+          {/* Fee and Status */}
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Nomination Fee (₹) <span className="text-red-500">*</span></label>
@@ -270,6 +328,7 @@ export default function AddAwardModal({
             </div>
           </div>
 
+          {/* Display Order */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Display Order (Optional)</label>
             <input 
@@ -283,6 +342,111 @@ export default function AddAwardModal({
             <p className="text-xs text-gray-400 mt-1">Lower numbers appear first</p>
           </div>
 
+          {/* SEO Settings Section */}
+          <div className="border rounded-lg overflow-hidden">
+            <button
+              type="button"
+              onClick={() => setShowSEO(!showSEO)}
+              className="w-full flex justify-between items-center p-3 bg-gray-50 hover:bg-gray-100 transition"
+            >
+              <span className="font-medium text-gray-700">🔍 SEO Settings (Optional)</span>
+              {showSEO ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+            </button>
+            
+            {showSEO && (
+              <div className="p-4 space-y-3 border-t">
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">SEO Title</label>
+                  <input 
+                    type="text" 
+                    name="seo.title" 
+                    value={formData.seo.title} 
+                    onChange={handleChange} 
+                    placeholder="SEO optimized title" 
+                    className="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 text-sm" 
+                  />
+                  <p className="text-xs text-gray-400 mt-1">If empty, award name will be used</p>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Meta Title</label>
+                  <input 
+                    type="text" 
+                    name="seo.metaTitle" 
+                    value={formData.seo.metaTitle} 
+                    onChange={handleChange} 
+                    placeholder="Meta title for search engines" 
+                    className="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 text-sm" 
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Meta Description</label>
+                  <textarea 
+                    name="seo.metaDescription" 
+                    value={formData.seo.metaDescription} 
+                    onChange={handleChange} 
+                    placeholder="Brief description for search results (150-160 characters)" 
+                    rows="2" 
+                    maxLength="160"
+                    className="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 text-sm" 
+                  />
+                  <p className="text-xs text-gray-400 mt-1">{formData.seo.metaDescription.length}/160 characters</p>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Canonical URL</label>
+                  <input 
+                    type="url" 
+                    name="seo.canonicalUrl" 
+                    value={formData.seo.canonicalUrl} 
+                    onChange={handleChange} 
+                    placeholder="https://example.com/award/name" 
+                    className="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 text-sm" 
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">OG Title (Social Media)</label>
+                  <input 
+                    type="text" 
+                    name="seo.ogTitle" 
+                    value={formData.seo.ogTitle} 
+                    onChange={handleChange} 
+                    placeholder="Title for social media sharing" 
+                    className="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 text-sm" 
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">OG Description (Social Media)</label>
+                  <textarea 
+                    name="seo.ogDescription" 
+                    value={formData.seo.ogDescription} 
+                    onChange={handleChange} 
+                    placeholder="Description for social media sharing" 
+                    rows="2" 
+                    className="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 text-sm" 
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Keywords</label>
+                  <input 
+                    type="text" 
+                    name="seo.keywords" 
+                    value={formData.seo.keywords} 
+                    onChange={handleChange} 
+                    placeholder="award, recognition, nomination (comma separated)" 
+                    className="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 text-sm" 
+                  />
+                  <p className="text-xs text-gray-400 mt-1">Separate keywords with commas</p>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Buttons */}
           <div className="flex gap-3 pt-4 border-t">
             <button type="button" onClick={onClose} className="flex-1 py-2.5 border border-gray-300 rounded-lg hover:bg-gray-50 transition font-medium">Cancel</button>
             <button type="submit" disabled={submitting} className="flex-1 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 transition font-medium disabled:opacity-50 disabled:cursor-not-allowed">{submitButtonText}</button>

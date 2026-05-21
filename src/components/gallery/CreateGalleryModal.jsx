@@ -11,7 +11,15 @@ export default function CreateGalleryModal({ isOpen, onClose, onGallerySaved, ed
     category: '',
     photographer: '',
     date: new Date().toISOString().split('T')[0],
-    isFeatured: false
+    isFeatured: false,
+    // ========== SEO FIELDS START ==========
+    metaTitle: '',
+    metaDescription: '',
+    canonicalUrl: '',
+    ogTitle: '',
+    ogDescription: '',
+    keywords: ''
+    // ========== SEO FIELDS END ==========
   })
   
   const [previewUrl, setPreviewUrl] = useState('')
@@ -21,6 +29,7 @@ export default function CreateGalleryModal({ isOpen, onClose, onGallerySaved, ed
   const [newCategoryName, setNewCategoryName] = useState('')
   const [newCategoryDesc, setNewCategoryDesc] = useState('')
   const [categoryList, setCategoryList] = useState([...categories])
+  const [showSeoSection, setShowSeoSection] = useState(false) // Toggle for SEO section
   
   const isEditMode = !!editingItem
 
@@ -41,7 +50,15 @@ export default function CreateGalleryModal({ isOpen, onClose, onGallerySaved, ed
         photographer: editingItem.photographer || '',
         date: editingItem.date || new Date().toISOString().split('T')[0],
         isFeatured: editingItem.isFeatured || false,
-        imageUrl: editingItem.imageUrl || editingItem.image || ''
+        imageUrl: editingItem.imageUrl || editingItem.image || '',
+        // ========== SEO FIELDS START ==========
+        metaTitle: editingItem.metaTitle || '',
+        metaDescription: editingItem.metaDescription || '',
+        canonicalUrl: editingItem.canonicalUrl || '',
+        ogTitle: editingItem.ogTitle || '',
+        ogDescription: editingItem.ogDescription || '',
+        keywords: editingItem.keywords || ''
+        // ========== SEO FIELDS END ==========
       }
       
       console.log('Populating form with:', itemData); // Debug log
@@ -54,7 +71,15 @@ export default function CreateGalleryModal({ isOpen, onClose, onGallerySaved, ed
         category: itemData.category,
         photographer: itemData.photographer,
         date: itemData.date ? new Date(itemData.date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
-        isFeatured: itemData.isFeatured
+        isFeatured: itemData.isFeatured,
+        // ========== SEO FIELDS START ==========
+        metaTitle: itemData.metaTitle,
+        metaDescription: itemData.metaDescription,
+        canonicalUrl: itemData.canonicalUrl,
+        ogTitle: itemData.ogTitle,
+        ogDescription: itemData.ogDescription,
+        keywords: itemData.keywords
+        // ========== SEO FIELDS END ==========
       })
       
       // Set preview from existing image URL
@@ -74,10 +99,19 @@ export default function CreateGalleryModal({ isOpen, onClose, onGallerySaved, ed
         category: '',
         photographer: '',
         date: new Date().toISOString().split('T')[0],
-        isFeatured: false
+        isFeatured: false,
+        // ========== SEO FIELDS START ==========
+        metaTitle: '',
+        metaDescription: '',
+        canonicalUrl: '',
+        ogTitle: '',
+        ogDescription: '',
+        keywords: ''
+        // ========== SEO FIELDS END ==========
       })
       setPreviewUrl('')
       setErrors({})
+      setShowSeoSection(false)
     }
   }, [editingItem])
 
@@ -176,7 +210,15 @@ export default function CreateGalleryModal({ isOpen, onClose, onGallerySaved, ed
           category: formData.category,
           photographer: formData.photographer,
           date: formData.date,
-          isFeatured: formData.isFeatured
+          isFeatured: formData.isFeatured,
+          // ========== SEO FIELDS START ==========
+          metaTitle: formData.metaTitle,
+          metaDescription: formData.metaDescription,
+          canonicalUrl: formData.canonicalUrl,
+          ogTitle: formData.ogTitle,
+          ogDescription: formData.ogDescription,
+          keywords: formData.keywords
+          // ========== SEO FIELDS END ==========
         })
         
         response = await galleryApi.updateGalleryItem(itemId, formDataToSend)
@@ -193,7 +235,15 @@ export default function CreateGalleryModal({ isOpen, onClose, onGallerySaved, ed
           category: formData.category,
           photographer: formData.photographer,
           date: formData.date,
-          isFeatured: formData.isFeatured
+          isFeatured: formData.isFeatured,
+          // ========== SEO FIELDS START ==========
+          metaTitle: formData.metaTitle,
+          metaDescription: formData.metaDescription,
+          canonicalUrl: formData.canonicalUrl,
+          ogTitle: formData.ogTitle,
+          ogDescription: formData.ogDescription,
+          keywords: formData.keywords
+          // ========== SEO FIELDS END ==========
         })
         
         response = await galleryApi.createGalleryItem(formDataToSend)
@@ -211,7 +261,15 @@ export default function CreateGalleryModal({ isOpen, onClose, onGallerySaved, ed
           category: '',
           photographer: '',
           date: new Date().toISOString().split('T')[0],
-          isFeatured: false
+          isFeatured: false,
+          // ========== SEO FIELDS START ==========
+          metaTitle: '',
+          metaDescription: '',
+          canonicalUrl: '',
+          ogTitle: '',
+          ogDescription: '',
+          keywords: ''
+          // ========== SEO FIELDS END ==========
         })
         setPreviewUrl('')
         
@@ -475,6 +533,113 @@ export default function CreateGalleryModal({ isOpen, onClose, onGallerySaved, ed
                 <span className="ml-2 text-sm text-slate-700">Feature this image</span>
               </label>
             </div>
+
+            {/* ========== SEO SECTION START ========== */}
+            {/* SEO Toggle Button */}
+            <div className="border-t border-slate-100 pt-4">
+              <button
+                type="button"
+                onClick={() => setShowSeoSection(!showSeoSection)}
+                className="flex items-center gap-2 text-sm text-slate-600 hover:text-slate-900 transition-colors"
+              >
+                <svg className={`w-4 h-4 transition-transform ${showSeoSection ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+                SEO Settings (Optional)
+              </button>
+            </div>
+
+            {/* SEO Fields - Collapsible */}
+            {showSeoSection && (
+              <div className="space-y-4 p-4 bg-slate-50 rounded-xl border border-slate-100">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                    Meta Title
+                  </label>
+                  <input
+                    type="text"
+                    name="metaTitle"
+                    value={formData.metaTitle}
+                    onChange={handleInputChange}
+                    placeholder="SEO title (leave empty to use regular title)"
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-slate-400 focus:border-slate-400 text-sm"
+                  />
+                  <p className="text-xs text-slate-400 mt-1">Recommended: 50-60 characters</p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                    Meta Description
+                  </label>
+                  <textarea
+                    name="metaDescription"
+                    value={formData.metaDescription}
+                    onChange={handleInputChange}
+                    placeholder="SEO description (leave empty to use alt text)"
+                    rows="2"
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-slate-400 focus:border-slate-400 text-sm"
+                  />
+                  <p className="text-xs text-slate-400 mt-1">Recommended: 150-160 characters</p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                    Canonical URL
+                  </label>
+                  <input
+                    type="url"
+                    name="canonicalUrl"
+                    value={formData.canonicalUrl}
+                    onChange={handleInputChange}
+                    placeholder="https://example.com/..."
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-slate-400 focus:border-slate-400 text-sm"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                    Open Graph Title (OG Title)
+                  </label>
+                  <input
+                    type="text"
+                    name="ogTitle"
+                    value={formData.ogTitle}
+                    onChange={handleInputChange}
+                    placeholder="Title for social media sharing"
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-slate-400 focus:border-slate-400 text-sm"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                    Open Graph Description (OG Description)
+                  </label>
+                  <textarea
+                    name="ogDescription"
+                    value={formData.ogDescription}
+                    onChange={handleInputChange}
+                    placeholder="Description for social media sharing"
+                    rows="2"
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-slate-400 focus:border-slate-400 text-sm"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                    Keywords (comma separated)
+                  </label>
+                  <input
+                    type="text"
+                    name="keywords"
+                    value={formData.keywords}
+                    onChange={handleInputChange}
+                    placeholder="gallery, art, exhibition, photography"
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-slate-400 focus:border-slate-400 text-sm"
+                  />
+                </div>
+              </div>
+            )}
+            {/* ========== SEO SECTION END ========== */}
 
             {/* Footer */}
             <div className="sticky bottom-0 bg-white pt-4 mt-2 flex justify-end gap-2 border-t border-slate-100 -mx-6 px-6 py-4">

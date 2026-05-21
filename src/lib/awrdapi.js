@@ -95,6 +95,14 @@ class AwardAPI {
     return this.request(`/awards/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status }) });
   }
 
+  // NEW: Update SEO settings only
+  updateAwardSEO(id, seoData) {
+    return this.request(`/awards/${id}/seo`, { 
+      method: 'PATCH', 
+      body: JSON.stringify({ seo: seoData }) 
+    });
+  }
+
   getAwardStats() {
     return this.request('/awards/stats/dashboard', { method: 'GET' });
   }

@@ -1,6 +1,6 @@
-// CreateArticleForm.jsx - UPDATED: Added World News Quick Select Button
+// CreateArticleForm.jsx - UPDATED: Added 9 SEO fields with OG Image as UPLOAD FIELD
 import { useState, useEffect } from 'react';
-import { X, Save, Upload, Calendar, Tag, User, FolderOpen, Edit, Image as ImageIcon, Trash2, TrendingUp, Globe } from 'lucide-react';
+import { X, Save, Upload, Calendar, Tag, User, FolderOpen, Edit, Image as ImageIcon, Trash2, TrendingUp, Globe, Search, Link, Eye, Code, FileText } from 'lucide-react';
 import TinyMCEEditor from '../texteditor/TinyMCEEditor';
 import categoryAPI from '../../lib/categapi';
 import authorApi from '../../lib/authorApi';
@@ -31,8 +31,12 @@ const CardContent = ({ children }) => (
   </div>
 );
 
-const Button = ({ children, onClick, type = "button", variant = "default", className = "", disabled = false }) => {
-  const baseStyles = "px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2";
+const Button = ({ children, onClick, type = "button", variant = "default", className = "", disabled = false, size = "default" }) => {
+  const baseStyles = "rounded-lg font-medium transition-colors flex items-center gap-2";
+  const sizeStyles = {
+    default: "px-4 py-2",
+    sm: "px-3 py-1.5 text-sm"
+  };
   const variants = {
     default: "bg-orange-500 text-white hover:bg-orange-600 disabled:bg-orange-300",
     outline: "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 disabled:bg-slate-100",
@@ -43,7 +47,7 @@ const Button = ({ children, onClick, type = "button", variant = "default", class
       type={type}
       onClick={onClick}
       disabled={disabled}
-      className={`${baseStyles} ${variants[variant] || variants.default} ${className}`}
+      className={`${baseStyles} ${sizeStyles[size]} ${variants[variant] || variants.default} ${className}`}
     >
       {children}
     </button>
@@ -52,6 +56,13 @@ const Button = ({ children, onClick, type = "button", variant = "default", class
 
 const Input = ({ ...props }) => (
   <input
+    {...props}
+    className={`w-full px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent ${props.className || ''}`}
+  />
+);
+
+const TextArea = ({ ...props }) => (
+  <textarea
     {...props}
     className={`w-full px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent ${props.className || ''}`}
   />
@@ -71,6 +82,9 @@ export default function CreateArticleForm({ onSubmit, onCancel, initialData = nu
   // Live News Boolean State
   const [isLiveNewsEnabled, setIsLiveNewsEnabled] = useState(false);
 
+  // World News Boolean State
+  const [isWorldNewsEnabled, setIsWorldNewsEnabled] = useState(false);
+
   // Trending Bar State
   const [trendingBarData, setTrendingBarData] = useState(null);
   const [trendingItems, setTrendingItems] = useState([]);
@@ -79,6 +93,9 @@ export default function CreateArticleForm({ onSubmit, onCancel, initialData = nu
 
   // Selected Trending Topic for this article
   const [selectedTrending, setSelectedTrending] = useState('');
+
+  // SEO PREVIEW STATE
+  const [showSeoPreview, setShowSeoPreview] = useState(false);
 
   const [formData, setFormData] = useState({
     title: initialData?.title || '',
@@ -91,10 +108,24 @@ export default function CreateArticleForm({ onSubmit, onCancel, initialData = nu
     scheduledFor: initialData?.scheduledFor || '',
     image: null,
     excerpt: initialData?.excerpt || '',
-    metaDescription: initialData?.metaDescription || '',
     existingFeaturedImage: initialData?.featuredImage || null,
     trendingTopic: initialData?.trendingTopic || '',
-    isLiveNews: initialData?.isLiveNews || false
+    isLiveNews: initialData?.isLiveNews || false,
+    isWorldNews: initialData?.isWorldNews || false,
+    
+    // SEO FIELDS
+    metaTitle: initialData?.metaTitle || '',
+    metaDescription: initialData?.metaDescription || '',
+    ogTitle: initialData?.ogTitle || '',
+    ogDescription: initialData?.ogDescription || '',
+    ogImage: initialData?.ogImage || '',
+    ogImageFile: null,
+    ogImagePreview: null,
+    useFeaturedAsOgImage: false,
+    canonicalUrl: initialData?.canonicalUrl || '',
+    robotsNoIndex: initialData?.robotsNoIndex || false,
+    robotsNoFollow: initialData?.robotsNoFollow || false,
+    focusKeyword: initialData?.focusKeyword || ''
   });
 
   // Set initial values when editing
@@ -109,9 +140,24 @@ export default function CreateArticleForm({ onSubmit, onCancel, initialData = nu
       setIsLiveNewsEnabled(initialData.isLiveNews);
       setFormData(prev => ({ ...prev, isLiveNews: initialData.isLiveNews }));
     }
+    if (initialData?.isWorldNews !== undefined) {
+      setIsWorldNewsEnabled(initialData.isWorldNews);
+      setFormData(prev => ({ ...prev, isWorldNews: initialData.isWorldNews }));
+    }
     if (initialData?.scheduledFor) {
       setFormData(prev => ({ ...prev, scheduledFor: initialData.scheduledFor }));
     }
+    
+    // Set SEO fields when editing
+    if (initialData?.metaTitle) setFormData(prev => ({ ...prev, metaTitle: initialData.metaTitle }));
+    if (initialData?.metaDescription) setFormData(prev => ({ ...prev, metaDescription: initialData.metaDescription }));
+    if (initialData?.ogTitle) setFormData(prev => ({ ...prev, ogTitle: initialData.ogTitle }));
+    if (initialData?.ogDescription) setFormData(prev => ({ ...prev, ogDescription: initialData.ogDescription }));
+    if (initialData?.ogImage) setFormData(prev => ({ ...prev, ogImage: initialData.ogImage, ogImagePreview: initialData.ogImage }));
+    if (initialData?.canonicalUrl) setFormData(prev => ({ ...prev, canonicalUrl: initialData.canonicalUrl }));
+    if (initialData?.robotsNoIndex !== undefined) setFormData(prev => ({ ...prev, robotsNoIndex: initialData.robotsNoIndex }));
+    if (initialData?.robotsNoFollow !== undefined) setFormData(prev => ({ ...prev, robotsNoFollow: initialData.robotsNoFollow }));
+    if (initialData?.focusKeyword) setFormData(prev => ({ ...prev, focusKeyword: initialData.focusKeyword }));
   }, [initialData]);
 
   // Fetch categories, authors, and trending bar on component mount
@@ -337,7 +383,7 @@ export default function CreateArticleForm({ onSubmit, onCancel, initialData = nu
     setTimeout(() => setSuccessMessage(null), 3000);
   };
 
-  // World News Quick Select Handler - WITH AUTO-CREATE
+  // World News Quick Select Handler
   const handleWorldNewsSelect = async () => {
     let worldNewsCategory = categories.find(
       cat => cat.name?.toLowerCase() === 'world news' ||
@@ -350,10 +396,13 @@ export default function CreateArticleForm({ onSubmit, onCancel, initialData = nu
         ...prev,
         category: worldNewsCategory._id || worldNewsCategory.id
       }));
-      setSuccessMessage('🌍 World News category selected successfully!');
-      setTimeout(() => setSuccessMessage(null), 2000);
+      
+      setIsWorldNewsEnabled(true);
+      setFormData(prev => ({ ...prev, isWorldNews: true }));
+      
+      setSuccessMessage('🌍 World News category selected AND isWorldNews set to TRUE!');
+      setTimeout(() => setSuccessMessage(null), 3000);
     } else {
-      // Ask if user wants to create the category
       const shouldCreate = confirm(
         '❌ "World News" category not found.\n\nWould you like to create it now?'
       );
@@ -361,7 +410,6 @@ export default function CreateArticleForm({ onSubmit, onCancel, initialData = nu
       if (shouldCreate) {
         try {
           setSubmitting(true);
-          // Create the category using your categoryAPI
           const newCategory = await categoryAPI.createCategory({
             name: 'World News',
             slug: 'world-news',
@@ -369,15 +417,17 @@ export default function CreateArticleForm({ onSubmit, onCancel, initialData = nu
             icon: '🌍'
           });
 
-          // Refresh categories list
           await fetchCategories();
 
-          // Select the newly created category
           setFormData(prev => ({
             ...prev,
             category: newCategory._id || newCategory.id
           }));
-          setSuccessMessage('✅ "World News" category created and selected!');
+          
+          setIsWorldNewsEnabled(true);
+          setFormData(prev => ({ ...prev, isWorldNews: true }));
+          
+          setSuccessMessage('✅ "World News" category created, selected, AND isWorldNews set to TRUE!');
           setTimeout(() => setSuccessMessage(null), 3000);
         } catch (err) {
           console.error('Error creating category:', err);
@@ -390,8 +440,40 @@ export default function CreateArticleForm({ onSubmit, onCancel, initialData = nu
     }
   };
 
+  // Toggle World News manually
+  const handleWorldNewsToggle = () => {
+    const newValue = !isWorldNewsEnabled;
+    setIsWorldNewsEnabled(newValue);
+    setFormData(prev => ({ ...prev, isWorldNews: newValue }));
+
+    if (newValue) {
+      setSuccessMessage('🌍 World News flag ENABLED - this will appear in World News section');
+    } else {
+      setSuccessMessage('🌍 World News flag DISABLED');
+    }
+    setTimeout(() => setSuccessMessage(null), 3000);
+  };
+
+  // SEO Helper: Generate meta title from article title if empty
+  const getAutoMetaTitle = () => {
+    if (formData.metaTitle) return formData.metaTitle;
+    if (formData.title) return `${formData.title} | Your Site Name`;
+    return 'Enter meta title';
+  };
+
+  // SEO Helper: Generate meta description from excerpt or content
+  const getAutoMetaDescription = () => {
+    if (formData.metaDescription) return formData.metaDescription;
+    if (formData.excerpt) return formData.excerpt.substring(0, 160);
+    if (formData.content) {
+      const plainText = formData.content.replace(/<[^>]*>/g, '').substring(0, 160);
+      return plainText;
+    }
+    return 'Enter meta description';
+  };
+
   const handleInputChange = (e) => {
-    const { name, value, type, files } = e.target;
+    const { name, value, type, files, checked } = e.target;
 
     if (type === 'file' && files[0]) {
       const file = files[0];
@@ -402,6 +484,11 @@ export default function CreateArticleForm({ onSubmit, onCancel, initialData = nu
         ...prev,
         [name]: file,
         existingFeaturedImage: null
+      }));
+    } else if (type === 'checkbox') {
+      setFormData(prev => ({
+        ...prev,
+        [name]: checked
       }));
     } else {
       setFormData(prev => ({
@@ -475,6 +562,36 @@ export default function CreateArticleForm({ onSubmit, onCancel, initialData = nu
     }
   };
 
+  // 🆕 Upload OG Image specifically
+  const uploadOgImage = async (file) => {
+    try {
+      setError(null);
+      console.log('Uploading OG Image:', file.name);
+
+      const uploadResponse = await API.media.uploadFile(file);
+      
+      let imageUrl = null;
+      if (uploadResponse.data?.data?.url) {
+        imageUrl = uploadResponse.data.data.url;
+      } else if (uploadResponse.data?.data?.filePath) {
+        imageUrl = uploadResponse.data.data.filePath;
+      } else if (uploadResponse.data?.url) {
+        imageUrl = uploadResponse.data.url;
+      } else if (uploadResponse.data?.filePath) {
+        imageUrl = uploadResponse.data.filePath;
+      }
+
+      if (!imageUrl) {
+        throw new Error('No image URL returned from server');
+      }
+
+      return imageUrl;
+    } catch (uploadError) {
+      console.error('Error uploading OG Image:', uploadError);
+      throw new Error(uploadError.response?.data?.message || 'Failed to upload OG Image');
+    }
+  };
+
   const createArticle = async (articleData, isDraft = false) => {
     try {
       if (!articleData.content || articleData.content.trim() === '') {
@@ -497,10 +614,23 @@ export default function CreateArticleForm({ onSubmit, onCancel, initialData = nu
         featuredImage: articleData.featuredImage || null,
         scheduledFor: articleData.scheduledFor || (articleData.status === 'published' ? new Date().toISOString() : null),
         trendingTopicId: articleData.trendingTopic || null,
-        isLiveNews: articleData.isLiveNews === true
+        isLiveNews: articleData.isLiveNews === true,
+        isWorldNews: articleData.isWorldNews === true,
+        
+        // SEO FIELDS
+        metaTitle: articleData.metaTitle || null,
+        metaDescription: articleData.metaDescription || null,
+        ogTitle: articleData.ogTitle || null,
+        ogDescription: articleData.ogDescription || null,
+        // If useFeaturedAsOgImage is true, don't send ogImage (will use featured image on frontend)
+        ogImage: articleData.useFeaturedAsOgImage ? null : (articleData.ogImage || null),
+        canonicalUrl: articleData.canonicalUrl || null,
+        robotsNoIndex: articleData.robotsNoIndex || false,
+        robotsNoFollow: articleData.robotsNoFollow || false,
+        focusKeyword: articleData.focusKeyword || null
       };
 
-      console.log('Sending document data:', { scheduledFor: documentData.scheduledFor, isLiveNews: documentData.isLiveNews });
+      console.log('Sending document data:', { scheduledFor: documentData.scheduledFor, isLiveNews: documentData.isLiveNews, isWorldNews: documentData.isWorldNews, ogImage: documentData.ogImage });
       const response = await API.documents.createDocument(documentData);
       return response.data;
     } catch (err) {
@@ -522,10 +652,23 @@ export default function CreateArticleForm({ onSubmit, onCancel, initialData = nu
         featuredImage: articleData.featuredImage || articleData.existingFeaturedImage || null,
         scheduledFor: articleData.scheduledFor || (articleData.status === 'published' ? new Date().toISOString() : null),
         trendingTopicId: articleData.trendingTopic || null,
-        isLiveNews: articleData.isLiveNews
+        isLiveNews: articleData.isLiveNews === true,
+        isWorldNews: articleData.isWorldNews === true,
+        
+        // SEO FIELDS
+        metaTitle: articleData.metaTitle || null,
+        metaDescription: articleData.metaDescription || null,
+        ogTitle: articleData.ogTitle || null,
+        ogDescription: articleData.ogDescription || null,
+        // If useFeaturedAsOgImage is true, don't send ogImage (will use featured image on frontend)
+        ogImage: articleData.useFeaturedAsOgImage ? null : (articleData.ogImage || null),
+        canonicalUrl: articleData.canonicalUrl || null,
+        robotsNoIndex: articleData.robotsNoIndex || false,
+        robotsNoFollow: articleData.robotsNoFollow || false,
+        focusKeyword: articleData.focusKeyword || null
       };
 
-      console.log('Updating article with scheduledFor:', documentData.scheduledFor);
+      console.log('Updating article with scheduledFor:', documentData.scheduledFor, 'isWorldNews:', documentData.isWorldNews);
       const response = await API.documents.updateDocument(id, documentData);
       return response.data;
     } catch (err) {
@@ -568,22 +711,34 @@ export default function CreateArticleForm({ onSubmit, onCancel, initialData = nu
         featuredImage = await uploadImage(formData.image);
       }
 
+      // If OG image file exists, upload it
+      let ogImageUrl = formData.ogImage;
+      if (formData.ogImageFile && !formData.useFeaturedAsOgImage) {
+        ogImageUrl = await uploadOgImage(formData.ogImageFile);
+      }
+
       const articleData = {
         ...formData,
         featuredImage,
-        isLiveNews: isLiveNewsEnabled
+        ogImage: ogImageUrl,
+        isLiveNews: isLiveNewsEnabled,
+        isWorldNews: isWorldNewsEnabled
       };
 
       let result;
       if (isEditing && initialData?._id) {
         result = await updateArticle(initialData._id, articleData);
-        const message = isLiveNewsEnabled
+        const message = isWorldNewsEnabled
+          ? '🌍 Article updated and marked as World News successfully!'
+          : isLiveNewsEnabled
           ? '✅ Article updated and published as Live News successfully!'
           : '⭕ Article updated as regular content.';
         setSuccessMessage(message);
       } else {
         result = await createArticle(articleData, false);
-        const message = isLiveNewsEnabled
+        const message = isWorldNewsEnabled
+          ? '🌍 Article published as World News successfully!'
+          : isLiveNewsEnabled
           ? '✅ Article published as Live News successfully!'
           : '✅ Article published successfully!';
         setSuccessMessage(message);
@@ -639,11 +794,19 @@ export default function CreateArticleForm({ onSubmit, onCancel, initialData = nu
         featuredImage = await uploadImage(formData.image);
       }
 
+      // If OG image file exists, upload it
+      let ogImageUrl = formData.ogImage;
+      if (formData.ogImageFile && !formData.useFeaturedAsOgImage) {
+        ogImageUrl = await uploadOgImage(formData.ogImageFile);
+      }
+
       const articleData = {
         ...formData,
         featuredImage,
+        ogImage: ogImageUrl,
         status: 'draft',
-        isLiveNews: false
+        isLiveNews: false,
+        isWorldNews: isWorldNewsEnabled
       };
 
       let result;
@@ -791,15 +954,328 @@ export default function CreateArticleForm({ onSubmit, onCancel, initialData = nu
                 <CardTitle>Excerpt</CardTitle>
               </CardHeader>
               <CardContent>
-                <textarea
+                <TextArea
                   name="excerpt"
                   value={formData.excerpt}
                   onChange={handleInputChange}
                   placeholder="Brief summary of the article (optional)"
-                  className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
                   rows="3"
                 />
-                <p className="text-xs text-slate-500 mt-1">Used in article listings and SEO meta description</p>
+                <p className="text-xs text-slate-500 mt-1">Used in article listings and as fallback for meta description</p>
+              </CardContent>
+            </Card>
+
+            {/* SEO SECTION - Main Content Area */}
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle>
+                    <Search className="w-4 h-4 inline mr-2" />
+                    SEO Settings (Meta Tags & Social Sharing)
+                  </CardTitle>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowSeoPreview(!showSeoPreview)}
+                  >
+                    <Eye className="w-4 h-4" />
+                    {showSeoPreview ? 'Hide Preview' : 'Show Preview'}
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {/* Meta Title */}
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">
+                    Meta Title <span className="text-xs text-slate-400">(50-60 characters recommended)</span>
+                  </label>
+                  <Input
+                    name="metaTitle"
+                    value={formData.metaTitle}
+                    onChange={handleInputChange}
+                    placeholder="SEO title (different from article title)"
+                  />
+                  <p className="text-xs text-slate-500 mt-1">
+                    Character count: {formData.metaTitle?.length || 0} / 60
+                  </p>
+                </div>
+
+                {/* Meta Description */}
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">
+                    Meta Description <span className="text-xs text-slate-400">(150-160 characters recommended)</span>
+                  </label>
+                  <TextArea
+                    name="metaDescription"
+                    value={formData.metaDescription}
+                    onChange={handleInputChange}
+                    placeholder="Brief description for search engines"
+                    rows="2"
+                  />
+                  <p className="text-xs text-slate-500 mt-1">
+                    Character count: {formData.metaDescription?.length || 0} / 160
+                  </p>
+                </div>
+
+                {/* Focus Keyword */}
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">
+                    <FileText className="w-3 h-3 inline mr-1" />
+                    Focus Keyword
+                  </label>
+                  <Input
+                    name="focusKeyword"
+                    value={formData.focusKeyword}
+                    onChange={handleInputChange}
+                    placeholder="Main SEO keyword for this article"
+                  />
+                  <p className="text-xs text-slate-500 mt-1">The primary keyword you want this article to rank for</p>
+                </div>
+
+                <div className="border-t border-slate-200 my-4"></div>
+
+                {/* Open Graph (Social Media) Section */}
+                <div>
+                  <h4 className="font-medium text-slate-800 mb-3">Open Graph (Social Media Sharing)</h4>
+                  
+                  {/* OG Title */}
+                  <div className="mb-3">
+                    <label className="block text-sm font-medium text-slate-700 mb-1">
+                      OG Title <span className="text-xs text-slate-400">(For Facebook, LinkedIn, etc.)</span>
+                    </label>
+                    <Input
+                      name="ogTitle"
+                      value={formData.ogTitle}
+                      onChange={handleInputChange}
+                      placeholder={`${formData.metaTitle || formData.title || 'Article Title'} | Your Site`}
+                    />
+                    <p className="text-xs text-slate-500 mt-1">Leave empty to use Meta Title</p>
+                  </div>
+
+                  {/* OG Description */}
+                  <div className="mb-3">
+                    <label className="block text-sm font-medium text-slate-700 mb-1">
+                      OG Description
+                    </label>
+                    <TextArea
+                      name="ogDescription"
+                      value={formData.ogDescription}
+                      onChange={handleInputChange}
+                      placeholder="Description for social media sharing"
+                      rows="2"
+                    />
+                    <p className="text-xs text-slate-500 mt-1">Leave empty to use Meta Description</p>
+                  </div>
+
+                  {/* OG Image - UPLOAD FIELD */}
+                  <div className="mb-3">
+                    <label className="block text-sm font-medium text-slate-700 mb-1">
+                      OG Image (Social Media Image) <span className="text-xs text-slate-400">(1200x630px recommended)</span>
+                    </label>
+                    
+                    {/* Show preview if OG image exists */}
+                    {(formData.ogImagePreview || (formData.ogImage && !formData.useFeaturedAsOgImage)) && !formData.useFeaturedAsOgImage ? (
+                      <div className="relative rounded-lg overflow-hidden border border-slate-200 mb-2">
+                        <img
+                          src={formData.ogImagePreview || (formData.ogImage ? API.media.getImageUrl(formData.ogImage) : '')}
+                          alt="OG Preview"
+                          className="w-full h-32 object-cover"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setFormData(prev => ({ ...prev, ogImage: null, ogImagePreview: null, ogImageFile: null }));
+                          }}
+                          className="absolute top-2 right-2 p-1 bg-red-500 text-white rounded-full hover:bg-red-600 transition"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="border-2 border-dashed border-slate-300 rounded-lg p-4 text-center hover:border-orange-500 transition mb-2">
+                        <Upload className="w-8 h-8 text-slate-400 mx-auto mb-2" />
+                        <p className="text-sm text-slate-600">Click to upload OG Image</p>
+                        <p className="text-xs text-slate-400 mt-1">1200x630px recommended for social sharing</p>
+                        <input
+                          type="file"
+                          onChange={async (e) => {
+                            const file = e.target.files[0];
+                            if (file) {
+                              // Show preview immediately
+                              const previewUrl = URL.createObjectURL(file);
+                              setFormData(prev => ({ 
+                                ...prev, 
+                                ogImageFile: file, 
+                                ogImagePreview: previewUrl,
+                                ogImage: null,
+                                useFeaturedAsOgImage: false
+                              }));
+                              
+                              // Upload the image
+                              try {
+                                const uploadedUrl = await uploadOgImage(file);
+                                setFormData(prev => ({ 
+                                  ...prev, 
+                                  ogImage: uploadedUrl,
+                                  ogImageFile: null
+                                }));
+                                setSuccessMessage('OG Image uploaded successfully!');
+                                setTimeout(() => setSuccessMessage(null), 2000);
+                              } catch (err) {
+                                setError('Failed to upload OG Image');
+                                setFormData(prev => ({ 
+                                  ...prev, 
+                                  ogImagePreview: null,
+                                  ogImageFile: null
+                                }));
+                              }
+                            }
+                          }}
+                          className="hidden"
+                          id="og-image-upload"
+                          accept="image/*"
+                        />
+                        <Button
+                          variant="outline"
+                          className="mt-2"
+                          onClick={() => document.getElementById('og-image-upload').click()}
+                          type="button"
+                          size="sm"
+                        >
+                          Choose OG Image
+                        </Button>
+                      </div>
+                    )}
+                    
+                    {/* OR use Featured Image as OG Image option */}
+                    <div className="mt-2">
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={formData.useFeaturedAsOgImage}
+                          onChange={(e) => {
+                            const isChecked = e.target.checked;
+                            setFormData(prev => ({ 
+                              ...prev, 
+                              useFeaturedAsOgImage: isChecked,
+                              ogImage: isChecked ? null : prev.ogImage,
+                              ogImagePreview: isChecked ? null : prev.ogImagePreview
+                            }));
+                            if (isChecked) {
+                              setSuccessMessage('Will use Featured Image as OG Image');
+                              setTimeout(() => setSuccessMessage(null), 2000);
+                            }
+                          }}
+                          className="rounded border-slate-300"
+                        />
+                        <span className="text-sm text-slate-700">Use Featured Image as OG Image</span>
+                      </label>
+                      <p className="text-xs text-slate-500 mt-1">Recommended: Upload a dedicated 1200x630px image for best social sharing results</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="border-t border-slate-200 my-4"></div>
+
+                {/* Advanced SEO */}
+                <div>
+                  <h4 className="font-medium text-slate-800 mb-3">Advanced SEO</h4>
+                  
+                  {/* Canonical URL */}
+                  <div className="mb-3">
+                    <label className="block text-sm font-medium text-slate-700 mb-1">
+                      <Link className="w-3 h-3 inline mr-1" />
+                      Canonical URL
+                    </label>
+                    <Input
+                      name="canonicalUrl"
+                      value={formData.canonicalUrl}
+                      onChange={handleInputChange}
+                      placeholder="https://example.com/canonical-url"
+                    />
+                    <p className="text-xs text-slate-500 mt-1">Use if this article has duplicate versions elsewhere</p>
+                  </div>
+
+                  {/* Robots Meta Tags */}
+                  <div className="flex gap-4 mb-3">
+                    <label className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        name="robotsNoIndex"
+                        checked={formData.robotsNoIndex}
+                        onChange={handleInputChange}
+                        className="rounded border-slate-300"
+                      />
+                      <span className="text-sm text-slate-700">No Index</span>
+                      <span className="text-xs text-slate-400">(Don't show in search results)</span>
+                    </label>
+                    <label className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        name="robotsNoFollow"
+                        checked={formData.robotsNoFollow}
+                        onChange={handleInputChange}
+                        className="rounded border-slate-300"
+                      />
+                      <span className="text-sm text-slate-700">No Follow</span>
+                      <span className="text-xs text-slate-400">(Don't follow links)</span>
+                    </label>
+                  </div>
+                </div>
+
+                {/* SEO PREVIEW SECTION */}
+                {showSeoPreview && (
+                  <div className="mt-4 p-4 bg-slate-50 rounded-lg border border-slate-200">
+                    <h4 className="font-semibold text-slate-800 mb-3 flex items-center gap-2">
+                      <Eye className="w-4 h-4" />
+                      SEO Preview
+                    </h4>
+                    
+                    {/* Google Search Preview */}
+                    <div className="mb-4 p-3 bg-white rounded border border-slate-200">
+                      <p className="text-xs text-slate-500 mb-1">Google Search Result Preview</p>
+                      <div className="text-blue-600 text-lg font-medium hover:underline cursor-pointer">
+                        {getAutoMetaTitle().substring(0, 60)}
+                      </div>
+                      <div className="text-green-700 text-sm">
+                        https://yoursite.com/article/{formData.slug || 'article-slug'}
+                      </div>
+                      <div className="text-slate-600 text-sm">
+                        {getAutoMetaDescription().substring(0, 160)}
+                      </div>
+                    </div>
+
+                    {/* Social Media Preview */}
+                    <div className="p-3 bg-white rounded border border-slate-200">
+                      <p className="text-xs text-slate-500 mb-1">Social Media Preview (Facebook/LinkedIn)</p>
+                      <div className="flex gap-3">
+                        <div className="w-20 h-20 bg-slate-200 rounded flex items-center justify-center text-xs text-slate-400 overflow-hidden">
+                          {(formData.ogImagePreview || (formData.ogImage && !formData.useFeaturedAsOgImage)) ? (
+                            <img 
+                              src={formData.ogImagePreview || API.media.getImageUrl(formData.ogImage)} 
+                              alt="OG Preview" 
+                              className="w-full h-full object-cover"
+                            />
+                          ) : formData.useFeaturedAsOgImage && imagePreview ? (
+                            <img src={imagePreview} alt="Featured Image" className="w-full h-full object-cover" />
+                          ) : (
+                            'No Image'
+                          )}
+                        </div>
+                        <div>
+                          <div className="font-semibold text-slate-800">
+                            {formData.ogTitle || getAutoMetaTitle().substring(0, 90)}
+                          </div>
+                          <div className="text-sm text-slate-600">
+                            {formData.ogDescription || getAutoMetaDescription().substring(0, 200)}
+                          </div>
+                          <div className="text-xs text-slate-400 mt-1">yoursite.com</div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
 
@@ -929,7 +1405,7 @@ export default function CreateArticleForm({ onSubmit, onCancel, initialData = nu
                       ))}
                     </select>
 
-                    {/* WORLD NEWS QUICK SELECT BUTTON - ADDED HERE */}
+                    {/* WORLD NEWS QUICK SELECT BUTTON */}
                     <button
                       type="button"
                       onClick={handleWorldNewsSelect}
@@ -1068,7 +1544,58 @@ export default function CreateArticleForm({ onSubmit, onCancel, initialData = nu
               </CardContent>
             </Card>
 
-            {/* Live News Management Section - Boolean Toggle Only */}
+            {/* World News Management Section */}
+            <Card>
+              <CardHeader>
+                <CardTitle>
+                  <div className="flex items-center justify-between">
+                    <span>🌍 World News Management</span>
+                    <button
+                      type="button"
+                      onClick={handleWorldNewsToggle}
+                      className={`
+                        relative inline-flex h-6 w-11 items-center rounded-full transition-colors
+                        ${isWorldNewsEnabled ? 'bg-blue-500' : 'bg-gray-300'}
+                      `}
+                    >
+                      <span
+                        className={`
+                          inline-block h-4 w-4 transform rounded-full bg-white transition-transform
+                          ${isWorldNewsEnabled ? 'translate-x-6' : 'translate-x-1'}
+                        `}
+                      />
+                    </button>
+                  </div>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className={`rounded-lg p-4 border ${isWorldNewsEnabled ? 'bg-blue-50 border-blue-200' : 'bg-gray-50 border-gray-200'}`}>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className={`text-sm font-medium ${isWorldNewsEnabled ? 'text-blue-700' : 'text-gray-600'}`}>
+                        {isWorldNewsEnabled ? '🌍 World News is ACTIVE' : '🌍 World News is INACTIVE'}
+                      </p>
+                      <p className="text-xs text-gray-500 mt-1">
+                        {isWorldNewsEnabled
+                          ? 'This article WILL appear in the World News section on the website'
+                          : 'This article will NOT appear in the World News section'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-purple-50 border border-purple-200 rounded-lg p-3 mt-3">
+                  <p className="text-xs text-purple-800">
+                    <strong>ℹ️ How it works:</strong><br />
+                    • <strong>BLUE (ON):</strong> Article will be marked as World News<br />
+                    • <strong>GRAY (OFF):</strong> Article will be regular content only<br />
+                    • Click the <strong>Quick Select: World News</strong> button above to automatically set this ON and select the World News category
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Live News Management Section */}
             <Card>
               <CardHeader>
                 <CardTitle>

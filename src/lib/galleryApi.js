@@ -415,6 +415,32 @@ export const createGalleryFormData = (data) => {
     formData.append('order', String(data.order));
   }
   
+  // ========== SEO FIELDS START ==========
+  if (data.metaTitle) {
+    formData.append('metaTitle', data.metaTitle);
+  }
+  
+  if (data.metaDescription) {
+    formData.append('metaDescription', data.metaDescription);
+  }
+  
+  if (data.canonicalUrl) {
+    formData.append('canonicalUrl', data.canonicalUrl);
+  }
+  
+  if (data.ogTitle) {
+    formData.append('ogTitle', data.ogTitle);
+  }
+  
+  if (data.ogDescription) {
+    formData.append('ogDescription', data.ogDescription);
+  }
+  
+  if (data.keywords) {
+    formData.append('keywords', data.keywords);
+  }
+  // ========== SEO FIELDS END ==========
+  
   return formData;
 };
 

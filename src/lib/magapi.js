@@ -1,5 +1,5 @@
 // frontend/src/lib/magapi.js
-// Frontend API client for magazine management system
+// Frontend API client for magazine management system with SEO support
 
 import { useAuthStore } from '../stores/authStore';
 
@@ -87,7 +87,7 @@ class MagazineAPI {
     return this.handleResponse(response);
   }
 
-  // ─── Magazine CRUD - FIXED to show all magazines ─────────────────────────
+  // ─── Magazine CRUD with SEO Support ───────────────────────────────────────
 
   async getMagazines(params = {}) {
     const qp = new URLSearchParams();
@@ -97,7 +97,6 @@ class MagazineAPI {
     if (params.accessType && params.accessType !== 'all')
       qp.append('accessType', params.accessType);
     
-    // CRITICAL FIX: Add showAll parameter for admins/editors
     if (params.showAll) {
       qp.append('showAll', 'true');
     }
@@ -125,13 +124,40 @@ class MagazineAPI {
     });
   }
 
+  // ─── SEO Methods (NEW) ───────────────────────────────────────────────────
+
+  async getMagazineSEO(slug) {
+    return this.request(`/magazines/seo/${slug}`, {
+      method: 'GET',
+      headers: this.getHeaders(),
+    });
+  }
+
+  async getSitemapData() {
+    return this.request('/magazines/sitemap', {
+      method: 'GET',
+      headers: this.getHeaders(),
+    });
+  }
+
+  async getStructuredData(slug) {
+    return this.request(`/magazines/structured-data/${slug}`, {
+      method: 'GET',
+      headers: this.getHeaders(),
+    });
+  }
+
+  // ─── Create/Update with SEO Fields ───────────────────────────────────────
+
   async createMagazine(magazineData) {
     const formData = this.createMagazineFormData(magazineData);
 
-    console.log('📤 Creating magazine:', {
+    console.log('📤 Creating magazine with SEO:', {
       title: magazineData.title,
       slug: magazineData.slug,
       accessType: magazineData.accessType,
+      metaTitle: magazineData.metaTitle,
+      hasMetaDescription: !!magazineData.metaDescription,
     });
 
     const url = `${this.baseURL}/magazines`;
@@ -257,9 +283,12 @@ class MagazineAPI {
     return token ? true : false;
   }
 
+  // ─── FormData Creation with SEO Fields (UPDATED) ─────────────────────────
+
   createMagazineFormData(d) {
     const fd = new FormData();
 
+    // Basic fields
     if (d.title) fd.append('title', d.title);
     if (d.slug) fd.append('slug', d.slug);
     if (d.description) fd.append('description', d.description);
@@ -270,6 +299,29 @@ class MagazineAPI {
     if (d.subscribers) fd.append('subscribers', d.subscribers);
     if (d.isPublished !== undefined) fd.append('isPublished', d.isPublished);
 
+    // ============================================
+    // SEO FIELDS (NEW)
+    // ============================================
+    if (d.metaTitle) fd.append('metaTitle', d.metaTitle);
+    if (d.metaDescription) fd.append('metaDescription', d.metaDescription);
+    if (d.metaKeywords) {
+      // Send as JSON string if array, otherwise as string
+      const keywords = Array.isArray(d.metaKeywords) 
+        ? JSON.stringify(d.metaKeywords) 
+        : d.metaKeywords;
+      fd.append('metaKeywords', keywords);
+    }
+    if (d.canonicalUrl) fd.append('canonicalUrl', d.canonicalUrl);
+    if (d.ogTitle) fd.append('ogTitle', d.ogTitle);
+    if (d.ogDescription) fd.append('ogDescription', d.ogDescription);
+    if (d.ogImage) fd.append('ogImage', d.ogImage);
+    if (d.twitterTitle) fd.append('twitterTitle', d.twitterTitle);
+    if (d.twitterDescription) fd.append('twitterDescription', d.twitterDescription);
+    if (d.twitterImage) fd.append('twitterImage', d.twitterImage);
+    if (d.robots) fd.append('robots', d.robots);
+    if (d.schemaType) fd.append('schemaType', d.schemaType);
+
+    // File uploads
     if (d.coverImageFile instanceof File) {
       fd.append('coverImage', d.coverImageFile);
     } else if (d.coverImage instanceof File) {
