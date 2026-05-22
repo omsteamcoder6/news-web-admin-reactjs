@@ -65,9 +65,9 @@ export function AdCard({ ad, onEdit, onDelete, onApprove, onReject, onPause, onR
     return null;
   };
 
-  // FIXED: Handle delete with proper ID and confirmation
+  // ✅ FIXED: Handle delete - passes only the ID string
   const handleDelete = () => {
-    const adId = ad.id || ad._id;
+    const adId = ad._id || ad.id;
     if (!adId) {
       console.error('Cannot delete: No ad ID found', ad);
       alert('Error: Cannot find advertisement ID');
@@ -75,7 +75,7 @@ export function AdCard({ ad, onEdit, onDelete, onApprove, onReject, onPause, onR
     }
     
     if (onDelete) {
-      onDelete(adId);
+      onDelete(adId);  // ✅ Pass only the ID string, not the whole object
     } else {
       console.error('onDelete prop is missing');
     }
@@ -83,7 +83,7 @@ export function AdCard({ ad, onEdit, onDelete, onApprove, onReject, onPause, onR
 
   // Handle resume
   const handleResume = () => {
-    const adId = ad.id || ad._id;
+    const adId = ad._id || ad.id;
     if (adId && onResume) {
       onResume(adId);
     }
@@ -91,7 +91,7 @@ export function AdCard({ ad, onEdit, onDelete, onApprove, onReject, onPause, onR
 
   // Handle pause
   const handlePause = () => {
-    const adId = ad.id || ad._id;
+    const adId = ad._id || ad.id;
     if (adId && onPause) {
       onPause(adId);
     }
@@ -99,7 +99,7 @@ export function AdCard({ ad, onEdit, onDelete, onApprove, onReject, onPause, onR
 
   // Handle approve
   const handleApprove = () => {
-    const adId = ad.id || ad._id;
+    const adId = ad._id || ad.id;
     if (adId && onApprove) {
       onApprove(adId);
     }
@@ -107,7 +107,7 @@ export function AdCard({ ad, onEdit, onDelete, onApprove, onReject, onPause, onR
 
   // Handle reject
   const handleReject = () => {
-    const adId = ad.id || ad._id;
+    const adId = ad._id || ad.id;
     if (adId && onReject) {
       onReject(adId);
     }
@@ -243,7 +243,7 @@ export function AdCard({ ad, onEdit, onDelete, onApprove, onReject, onPause, onR
             <Edit2 className="w-4 h-4 text-slate-600" />
           </button>
           
-          {/* FIXED: Delete button with proper handler */}
+          {/* ✅ FIXED: Delete button with proper handler - passes only ID */}
           <button 
             className="p-2 hover:bg-red-50 rounded transition" 
             onClick={handleDelete}

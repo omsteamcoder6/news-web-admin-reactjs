@@ -196,15 +196,23 @@ const advertisementApi = {
     });
   },
 
-  // FIXED: Delete advertisement - soft delete
+  // ✅ FIXED: Delete advertisement - soft delete with proper error handling
   deleteAdvertisement: async (id) => {
     if (!id) {
       throw new Error('Advertisement ID is required');
     }
     console.log('Deleting advertisement with ID:', id);
-    return apiRequest(`/advertisements/${id}`, {
-      method: 'DELETE',
-    });
+    
+    try {
+      const result = await apiRequest(`/advertisements/${id}`, {
+        method: 'DELETE',
+      });
+      console.log('Delete response:', result);
+      return result;
+    } catch (error) {
+      console.error('Delete API error:', error);
+      throw error;
+    }
   },
 
   getAdvertisementStats: async (signal = null) => {

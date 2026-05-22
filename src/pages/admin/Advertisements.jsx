@@ -53,11 +53,11 @@ export default function AdvertisementsPage() {
   const saveAd = async (formData, imageFiles, videoFile) => {
     try {
       if (editingAd) {
-        const response = await advertisementApi.updateAdvertisement(editingAd.id || editingAd._id, formData);
+        await advertisementApi.updateAdvertisement(editingAd.id || editingAd._id, formData);
         toast.success('Advertisement updated successfully');
         await fetchAds();
       } else {
-        const response = await advertisementApi.createAdvertisement(formData, videoFile, imageFiles);
+        await advertisementApi.createAdvertisement(formData, videoFile, imageFiles);
         toast.success('Advertisement created successfully');
         await fetchAds();
       }
@@ -70,13 +70,11 @@ export default function AdvertisementsPage() {
     }
   };
 
-  // FIXED: Soft delete function - properly deletes from database
-  const softDeleteAd = async (id) => {
-    // Extract the correct ID
-    const adId = typeof id === 'object' ? (id._id || id.id) : id;
-    
+  // ✅ FIXED: Soft delete function - properly deletes from database
+  const handleDeleteAd = async (adId) => {
+    // Validate ID
     if (!adId) {
-      console.error('Invalid ad ID:', id);
+      console.error('Invalid ad ID:', adId);
       toast.error('Cannot delete: Invalid advertisement ID');
       return;
     }
@@ -271,17 +269,17 @@ export default function AdvertisementsPage() {
                 ) : (
                   filteredAds.map(ad => (
                     <AdCard
-                      key={ad.id || ad._id}
+                      key={ad._id || ad.id}
                       ad={{
                         ...ad,
-                        id: ad.id || ad._id,
+                        id: ad._id || ad.id,
                       }}
                       onEdit={(ad) => { 
                         const formattedAd = advertisementApi.formatAdForForm(ad);
                         setEditingAd(formattedAd); 
                         setShowCreateDialog(true); 
                       }}
-                      onDelete={softDeleteAd}
+                      onDelete={handleDeleteAd}
                       onApprove={approveAd}
                       onReject={(id) => setRejectAdId(id)}
                       onPause={pauseAd}

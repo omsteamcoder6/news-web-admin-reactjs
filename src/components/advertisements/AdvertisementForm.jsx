@@ -3,21 +3,88 @@ import { useState, useEffect, useRef } from 'react';
 // ─── Data ────────────────────────────────────────────────────────────────────
 
 const POSITION_CATEGORIES = {
-    'Header': ['Above Logo', 'Below Logo', 'Full Width Strip', 'Sticky Header'],
-    'Navigation': ['Inside Menu', 'Beside Menu', 'Dropdown Menu'],
-    'Content': ['Before Title', 'After Title', 'Before Content', 'After Content', 'Between Paragraphs', 'After 1st Paragraph', 'After 2nd Paragraph', 'After 3rd Paragraph', 'Between Images'],
-    'Sidebar': ['Top Sidebar', 'Middle Sidebar', 'Bottom Sidebar', 'Sticky Sidebar'],
-    'Footer': ['Above Footer', 'Inside Footer', 'After Footer', 'Sticky Footer'],
-    'Between Posts': ['Every 1st Post', 'Every 2nd Post', 'Every 3rd Post', 'After Every Post'],
-    'Video Player': ['Pre-roll', 'Mid-roll', 'Post-roll', 'Pause Ad'],
-    'Popup': ['On Load', 'On Scroll', 'On Exit Intent', 'On Click', 'Timed Popup'],
-    'Floating': ['Corner Widget', 'Sticky Bottom', 'Slide-in Left', 'Slide-in Right'],
-    'Interstitial': ['Full Screen', 'Between Pages'],
-    'Homepage Premium': ['Top Banner', 'Middle Banner', 'Bottom Banner'],
-    'Article Middle': ['After Title', 'Before Content', 'After Content', 'Between Paragraphs'],
-    'Top Banner': ['Top of Page', 'Below Header'],
-    'Between News Cards': ['Between Card 1-2', 'Between Card 2-3', 'Between Card 3-4'],
-    'Sticky Bottom': ['Fixed Bottom']
+  'Header': ['Above Logo', 'Below Logo', 'Full Width Strip', 'Sticky Header'],
+  'Navigation': ['Inside Menu', 'Beside Menu', 'Dropdown Menu'],
+  'Content': ['Before Title', 'After Title', 'Before Content', 'After Content', 'Between Paragraphs', 'After 1st Paragraph', 'After 2nd Paragraph', 'After 3rd Paragraph', 'Between Images'],
+  'Sidebar': ['Top Sidebar', 'Middle Sidebar', 'Bottom Sidebar', 'Sticky Sidebar'],
+  'Footer': ['Above Footer', 'Inside Footer', 'After Footer', 'Sticky Footer'],
+  'Between Posts': ['Every 1st Post', 'Every 2nd Post', 'Every 3rd Post', 'After Every Post'],
+  'Video Player': ['Pre-roll', 'Mid-roll', 'Post-roll', 'Pause Ad'],
+  
+  // ========== POPUP POSITIONS (47 Options) ==========
+  'Popup': [
+    // Original Positions
+    'On Load',
+    'On Scroll',
+    'On Exit Intent',
+    'On Click',
+    'Timed Popup',
+    
+    // Time-Based Positions
+    'On Load Delay 5s',
+    'On Load Delay 10s',
+    'On Load Delay 30s',
+    'On Idle',
+    'On Return',
+    'Every 30s',
+    'Every 60s',
+    
+    // Scroll-Based Positions
+    'On Scroll 25%',
+    'On Scroll 50%',
+    'On Scroll 75%',
+    'On Scroll 100%',
+    'On Scroll Up',
+    'On Scroll Down',
+    'After First Scroll',
+    
+    // Interaction-Based Positions
+    'On Click Anywhere',
+    'On Click Link',
+    'On Button Hover',
+    'On Image Click',
+    'On Form Focus',
+    'On Video Pause',
+    'On Video End',
+    
+    // Page Navigation Positions
+    'On Page Change',
+    'On Back Button',
+    'On Refresh',
+    'Before Unload',
+    
+    // Element-Based Positions
+    'On Menu Open',
+    'On Search',
+    'On Filter',
+    'On Add to Cart',
+    'On Checkout',
+    'On Share',
+    
+    // Session-Based Positions
+    'On First Visit',
+    'On Second Visit',
+    'Every 3rd Page',
+    'On Return Visit',
+    'After 5 Seconds',
+    'After 10 Seconds',
+    
+    // Mobile-Specific Positions
+    'On Swipe',
+    'On Orientation Change',
+    'On Touch Start',
+    'On Mobile Menu',
+    'On Keyboard Open'
+  ],
+  // ========== END OF POPUP POSITIONS ==========
+  
+  'Floating': ['Corner Widget', 'Sticky Bottom', 'Slide-in Left', 'Slide-in Right'],
+  'Interstitial': ['Full Screen', 'Between Pages'],
+  'Homepage Premium': ['Top Banner', 'Middle Banner', 'Bottom Banner'],
+  'Article Middle': ['After Title', 'Before Content', 'After Content', 'Between Paragraphs'],
+  'Top Banner': ['Top of Page', 'Below Header'],
+  'Between News Cards': ['Between Card 1-2', 'Between Card 2-3', 'Between Card 3-4'],
+  'Sticky Bottom': ['Fixed Bottom']
 };
 
 const ROTATION_METHODS = [
@@ -616,7 +683,7 @@ function NativeAdFields({ brandName, brandLogo, onBrandNameChange, onBrandLogoCh
     );
 }
 
-// ─── Ad Size Selector Component (DROPDOWN VERSION) ───────────────────────────
+// ─── Ad Size Selector Component ───────────────────────────────────────────
 
 function AdSizeSelector({ selectedSize, onSizeChange, placementCategory, onDeviceCategoryChange }) {
   const [sizeError, setSizeError] = useState(null);
@@ -1078,7 +1145,7 @@ export function AdvertisementForm({ isOpen, onClose, onSubmit, editingAd }) {
                             <div />
                         </div>
 
-                        {/* Ad Size Selection - DROPDOWN VERSION */}
+                        {/* Ad Size Selection */}
                         <div style={s.rowFull}>
                             <AdSizeSelector
                                 selectedSize={selectedSize}
