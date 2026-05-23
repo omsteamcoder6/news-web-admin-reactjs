@@ -3,31 +3,74 @@ import { Link } from 'react-router-dom'
 import { 
   BarChart3, BookOpen, Users, Settings, FileText, Images, 
   DollarSign, MessageSquare, Bell, LayoutDashboard, Tag, 
-  ShoppingCart, Eye, LogOut, PlayCircle, PlusCircle, Tv, Film, Gamepad2, Trophy
+  ShoppingCart, Eye, LogOut, PlayCircle, PlusCircle, Tv, Film, Gamepad2, Trophy,
+  Mail, Home, Video, Image, Award, UserCog, Newspaper, TrendingUp, 
+  Calendar, Star, FolderTree, Headphones, HelpCircle, Shield, Palette, Camera
 } from 'lucide-react'
 import { cn } from '../../lib/utils'
 
+const getIconForLabel = (label) => {
+  const iconMap = {
+    // MENU section
+    'Dashboard': LayoutDashboard,
+    'News Management': Newspaper,
+    'Header': LayoutDashboard,
+    'Categories': FolderTree,
+    'Authors': Users,
+    'Multimedia': Images,
+    'Inquiry': HelpCircle,
+    'Premium Content': Star,
+    'SEO Management': TrendingUp,
+    'Products': ShoppingCart,  // Added Products icon
+    
+    // DISCOVERY section
+    'Advertisements': DollarSign,
+    'Comments': MessageSquare,
+    'Gallery': Camera,
+    'Notifications': Bell,
+    'Videos': Video,
+    'Contact': Mail,
+    'Homepage': Home,
+    
+    // GENERAL section
+    'Analytics': BarChart3,
+    'Users & Roles': UserCog,
+    'Magazines': BookOpen,
+    'Awards': Trophy,
+    'Settings': Settings,
+  }
+  
+  return iconMap[label] || LayoutDashboard // fallback icon
+}
+
 const menuItems = [
-  { label: 'Dashboard', href: '/admin', icon: LayoutDashboard, section: 'MENU' },
-  { label: 'News Management', href: '/admin/articles', icon: FileText, section: 'MENU' },
-  { label: 'Header', href: '/admin/header', icon: Tag, section: 'MENU' },
-  { label: 'Categories', href: '/admin/categories', icon: Tag, section: 'MENU' },
-  { label: 'Authors', href: '/admin/authors', icon: Users, section: 'MENU' },
-  { label: 'Multimedia', href: '/admin/multimedia', icon: Images, section: 'MENU' },
-  { label: 'Inquiry', href: '/admin/inquiry', icon: Images, section: 'MENU' },
-  { label: 'Premium Content', href: '/admin/premium', icon: ShoppingCart, section: 'MENU' },
-  { label: 'SEO Management', href: '/admin/seo', icon: Eye, section: 'MENU' },
-  { label: 'Advertisements', href: '/admin/advertisements', icon: DollarSign, section: 'DISCOVERY' },
-  { label: 'Comments', href: '/admin/comments', icon: MessageSquare, section: 'DISCOVERY' },
-  { label: 'Gallery', href: '/admin/gallery', icon: MessageSquare, section: 'DISCOVERY' },
-  { label: 'Notifications', href: '/admin/notifications', icon: Bell, section: 'DISCOVERY' },
-  { label: 'Videos', href: '/admin/videos', icon: Bell, section: 'DISCOVERY' },
-  { label: 'Homepage', href: '/admin/homepage', icon: LayoutDashboard, section: 'DISCOVERY' },
-  { label: 'Analytics', href: '/admin/analytics', icon: BarChart3, section: 'GENERAL' },
-  { label: 'Users & Roles', href: '/admin/users', icon: Users, section: 'GENERAL' },
-  { label: 'Magazines', href: '/admin/magazines', icon: BookOpen, section: 'GENERAL' },
-  { label: 'Awards', href: '/admin/awards', icon: Trophy, section: 'GENERAL' },
-  { label: 'Settings', href: '/admin/settings', icon: Settings, section: 'GENERAL' },
+  // MENU section
+  { label: 'Dashboard', href: '/admin', section: 'MENU' },
+  { label: 'News Management', href: '/admin/articles', section: 'MENU' },
+  { label: 'Products', href: '/admin/products', section: 'MENU' },  // Added Products here
+  { label: 'Header', href: '/admin/header', section: 'MENU' },
+  { label: 'Categories', href: '/admin/categories', section: 'MENU' },
+  { label: 'Authors', href: '/admin/authors', section: 'MENU' },
+  { label: 'Multimedia', href: '/admin/multimedia', section: 'MENU' },
+  { label: 'Inquiry', href: '/admin/inquiry', section: 'MENU' },
+  { label: 'Premium Content', href: '/admin/premium', section: 'MENU' },
+  { label: 'SEO Management', href: '/admin/seo', section: 'MENU' },
+  
+  // DISCOVERY section
+  { label: 'Advertisements', href: '/admin/advertisements', section: 'DISCOVERY' },
+  { label: 'Comments', href: '/admin/comments', section: 'DISCOVERY' },
+  { label: 'Gallery', href: '/admin/gallery', section: 'DISCOVERY' },
+  { label: 'Notifications', href: '/admin/notifications', section: 'DISCOVERY' },
+  { label: 'Videos', href: '/admin/videos', section: 'DISCOVERY' },
+  { label: 'Contact', href: '/admin/contacts', section: 'DISCOVERY' },
+  { label: 'Homepage', href: '/admin/homepage', section: 'DISCOVERY' },
+  
+  // GENERAL section
+  { label: 'Analytics', href: '/admin/analytics', section: 'GENERAL' },
+  { label: 'Users & Roles', href: '/admin/users', section: 'GENERAL' },
+  { label: 'Magazines', href: '/admin/magazines', section: 'GENERAL' },
+  { label: 'Awards', href: '/admin/awards', section: 'GENERAL' },
+  { label: 'Settings', href: '/admin/settings', section: 'GENERAL' },
 ]
 
 export function Sidebar() {
@@ -39,7 +82,6 @@ export function Sidebar() {
     window.location.href = '/'
   }
 
-  // Helper to render sections
   const renderSection = (sectionName) => {
     const items = menuItems.filter(item => item.section === sectionName);
     if (items.length === 0) return null;
@@ -50,7 +92,7 @@ export function Sidebar() {
           {sectionName}
         </h3>
         {items.map((item) => {
-          const Icon = item.icon
+          const Icon = getIconForLabel(item.label)
           const isActive = location.pathname === item.href
 
           return (
@@ -66,9 +108,8 @@ export function Sidebar() {
             >
               <Icon className={cn("w-5 h-5", isActive ? "text-white" : "text-gray-400")} />
               <span className="text-sm font-medium">{item.label}</span>
-              {/* Optional notification dot like in the image */}
               {item.label === 'Notifications' && (
-                 <span className="ml-auto bg-red-500 text-[10px] w-4 h-4 flex items-center justify-center rounded-full">7</span>
+                <span className="ml-auto bg-red-500 text-[10px] w-4 h-4 flex items-center justify-center rounded-full">7</span>
               )}
             </Link>
           )
@@ -80,25 +121,21 @@ export function Sidebar() {
 
   return (
     <aside className="w-64 bg-[#1a1a1a] text-white h-screen fixed left-0 top-0 overflow-y-auto flex flex-col border-r border-white/10 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden shadow-2xl">
-      {/* Background Texture Overlay */}
       <div className="absolute inset-0 opacity-10 pointer-events-none bg-[url('https://www.transparenttextures.com/patterns/dark-matter.png')]"></div>
       
       <div className="relative z-10 flex flex-col h-full">
-        {/* Header/Logo Section */}
         <div className="p-6 mb-2">
           <h1 className="text-2xl font-black text-white tracking-tighter italic">
             CMS<span className="text-red-600">.</span>
           </h1>
         </div>
 
-        {/* Navigation Content */}
         <nav className="flex-1">
           {renderSection('MENU')}
           {renderSection('DISCOVERY')}
           {renderSection('GENERAL')}
         </nav>
 
-        {/* Logout Section */}
         <div className="p-4 bg-black/20">
           <button
             onClick={handleLogout}

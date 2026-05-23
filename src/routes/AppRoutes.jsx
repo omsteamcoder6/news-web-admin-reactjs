@@ -24,6 +24,9 @@ import Videos from '../pages/admin/Videos';
 import Inquiry from '../pages/admin/Inquiry';
 import Header from '../pages/admin/Header';
 import HeaderManager from '../components/admin/HeaderManager';
+import Contacts from '../pages/admin/Contacts'; 
+import Products from '../pages/admin/Products';
+// Remove the Contact import from lucide-react
 
 // Create a simple Home component if you don't have one
 const Home = () => {
@@ -62,6 +65,8 @@ const AppRoute = () => {
       <Route path="/admin/settings" element={<Settings />} />
       <Route path="/admin/inquiry" element={<Inquiry />} />
       <Route path="/admin/header" element={<HeaderManager />} />
+      <Route path="/admin/contacts" element={<Contacts />} /> \
+      <Route path="/admin/products" element={<Products />} /> 
     </Routes>
   );
 };
