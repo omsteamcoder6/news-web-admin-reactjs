@@ -4,6 +4,7 @@ import { Routes, Route } from 'react-router-dom';
 import AdminDashboard from '../pages/admin/Dashboard';
 import Articles from '../pages/admin/Articles';
 import Categories from '../pages/admin/Categories';
+import CategoryCustomize from '../pages/admin/CategoryCustomize';
 import Authors from '../pages/admin/Authors';
 import Multimedia from '../pages/admin/Multimedia';
 import Premium from '../pages/admin/Premium';
@@ -26,7 +27,6 @@ import Header from '../pages/admin/Header';
 import HeaderManager from '../components/admin/HeaderManager';
 import Contacts from '../pages/admin/Contacts'; 
 import Products from '../pages/admin/Products';
-// Remove the Contact import from lucide-react
 
 // Create a simple Home component if you don't have one
 const Home = () => {
@@ -48,6 +48,8 @@ const AppRoute = () => {
       <Route path="/admin/articles" element={<Articles />} />
       <Route path="/admin/articles/new" element={<NewArticle />} />
       <Route path="/admin/categories" element={<Categories />} />
+      {/* ADD THIS ROUTE - Must be before /admin/categories/:id if you have dynamic routes */}
+      <Route path="/admin/categories/:id/customize" element={<CategoryCustomize />} />
       <Route path="/admin/authors" element={<Authors />} />
       <Route path="/admin/multimedia" element={<Multimedia />} />
       <Route path="/admin/premium" element={<Premium />} />
@@ -65,8 +67,8 @@ const AppRoute = () => {
       <Route path="/admin/settings" element={<Settings />} />
       <Route path="/admin/inquiry" element={<Inquiry />} />
       <Route path="/admin/header" element={<HeaderManager />} />
-      <Route path="/admin/contacts" element={<Contacts />} /> \
-      <Route path="/admin/products" element={<Products />} /> 
+      <Route path="/admin/contacts" element={<Contacts />} />
+      <Route path="/admin/products" element={<Products />} />
     </Routes>
   );
 };
