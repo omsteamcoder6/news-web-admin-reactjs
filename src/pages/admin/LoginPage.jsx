@@ -2,7 +2,8 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../stores/authStore';
-import { authAPI } from '../../lib/api';
+
+const API_BASE_URL = import.meta.env.VITE_API_URL || '';
 
 const LoginPage = () => {
   const navigate = useNavigate();
@@ -18,23 +19,31 @@ const LoginPage = () => {
     setIsLoading(true);
 
     try {
-      const response = await authAPI.login(email, password);
+      // Direct API call without /api prefix, using environment variable
+      const response = await fetch(`${API_BASE_URL}/auth/login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, password }),
+      });
 
-      // ✅ FIXED: Correctly access the response data
-      if (response.data.success) {
-        const token = response.data.data.token;
-        const user = response.data.data.user;
+      const data = await response.json();
+
+      if (data.success) {
+        const token = data.data.token;
+        const user = data.data.user;
         
         // setAuth writes to Zustand + persists to localStorage via persist middleware
         setAuth(token, user);
         
         navigate('/admin');
       } else {
-        setError(response.data.message || 'Login failed');
+        setError(data.message || 'Login failed');
       }
     } catch (err) {
       console.error('Login error:', err);
-      setError(err.response?.data?.message || err.message || 'Invalid email or password');
+      setError(err.message || 'Invalid email or password');
     } finally {
       setIsLoading(false);
     }

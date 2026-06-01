@@ -9,9 +9,11 @@ import {
 } from 'lucide-react'
 import { cn } from '../../lib/utils'
 
+// Get API base URL from environment variables
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api'
+
 const getIconForLabel = (label) => {
   const iconMap = {
-    // MENU section
     'Dashboard': LayoutDashboard,
     'News Management': Newspaper,
     'Header': LayoutDashboard,
@@ -21,9 +23,7 @@ const getIconForLabel = (label) => {
     'Inquiry': HelpCircle,
     'Premium Content': Star,
     'SEO Management': TrendingUp,
-    'Products': ShoppingCart,  // Added Products icon
-    
-    // DISCOVERY section
+    'Products': ShoppingCart,
     'Advertisements': DollarSign,
     'Comments': MessageSquare,
     'Gallery': Camera,
@@ -31,8 +31,6 @@ const getIconForLabel = (label) => {
     'Videos': Video,
     'Contact': Mail,
     'Homepage': Home,
-    
-    // GENERAL section
     'Analytics': BarChart3,
     'Users & Roles': UserCog,
     'Magazines': BookOpen,
@@ -40,14 +38,13 @@ const getIconForLabel = (label) => {
     'Settings': Settings,
   }
   
-  return iconMap[label] || LayoutDashboard // fallback icon
+  return iconMap[label] || LayoutDashboard
 }
 
 const menuItems = [
-  // MENU section
   { label: 'Dashboard', href: '/admin', section: 'MENU' },
   { label: 'News Management', href: '/admin/articles', section: 'MENU' },
-  { label: 'Products', href: '/admin/products', section: 'MENU' },  // Added Products here
+  { label: 'Products', href: '/admin/products', section: 'MENU' },
   { label: 'Header', href: '/admin/header', section: 'MENU' },
   { label: 'Categories', href: '/admin/categories', section: 'MENU' },
   { label: 'Authors', href: '/admin/authors', section: 'MENU' },
@@ -55,8 +52,6 @@ const menuItems = [
   { label: 'Inquiry', href: '/admin/inquiry', section: 'MENU' },
   { label: 'Premium Content', href: '/admin/premium', section: 'MENU' },
   { label: 'SEO Management', href: '/admin/seo', section: 'MENU' },
-  
-  // DISCOVERY section
   { label: 'Advertisements', href: '/admin/advertisements', section: 'DISCOVERY' },
   { label: 'Comments', href: '/admin/comments', section: 'DISCOVERY' },
   { label: 'Gallery', href: '/admin/gallery', section: 'DISCOVERY' },
@@ -64,8 +59,6 @@ const menuItems = [
   { label: 'Videos', href: '/admin/videos', section: 'DISCOVERY' },
   { label: 'Contact', href: '/admin/contacts', section: 'DISCOVERY' },
   { label: 'Homepage', href: '/admin/homepage', section: 'DISCOVERY' },
-  
-  // GENERAL section
   { label: 'Analytics', href: '/admin/analytics', section: 'GENERAL' },
   { label: 'Users & Roles', href: '/admin/users', section: 'GENERAL' },
   { label: 'Magazines', href: '/admin/magazines', section: 'GENERAL' },
@@ -76,10 +69,73 @@ const menuItems = [
 export function Sidebar() {
   const location = useLocation()
 
-  const handleLogout = () => {
-    localStorage.removeItem('token')
-    localStorage.removeItem('user')
-    window.location.href = '/'
+  const handleLogout = async () => {
+    try {
+      // Try to get token from auth-storage first
+      let token = null;
+      const authStorage = localStorage.getItem('auth-storage');
+      
+      if (authStorage) {
+        const authData = JSON.parse(authStorage);
+        token = authData.state?.token;
+      }
+      
+      // If not found, try accessToken
+      if (!token) {
+        token = localStorage.getItem('accessToken');
+      }
+      
+      if (token) {
+        // Call logout API to blacklist the token
+        await fetch(`${API_BASE_URL}/auth/logout`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        }).catch(err => console.error('Logout API error:', err));
+      }
+    } catch (error) {
+      console.error('Logout error:', error);
+    } finally {
+      // Clear ALL authentication-related items from localStorage
+      const authKeys = [
+        'token',
+        'user', 
+        'accessToken',
+        'refreshToken',
+        'tokenExpiry',
+        'userRole',
+        'username',
+        'auth-storage'
+      ];
+      
+      authKeys.forEach(key => {
+        localStorage.removeItem(key);
+      });
+      
+      // Also clear any items that start with 'category_layout_' or other app-specific items if needed
+      const keysToRemove = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && (key.startsWith('category_layout_') || 
+                    key.startsWith('tinymce-') ||
+                    key === 'theme' ||
+                    key === 'language')) {
+          keysToRemove.push(key);
+        }
+      }
+      
+      keysToRemove.forEach(key => {
+        localStorage.removeItem(key);
+      });
+      
+      // Clear sessionStorage if used
+      sessionStorage.clear();
+      
+      // Redirect to home page
+      window.location.href = '/';
+    }
   }
 
   const renderSection = (sectionName) => {

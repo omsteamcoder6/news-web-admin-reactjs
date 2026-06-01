@@ -1,4 +1,5 @@
 import { Routes, Route } from 'react-router-dom';
+import ProtectedRoute from './ProtectedRoute';
 
 // Pages (adjust paths if needed)
 import AdminDashboard from '../pages/admin/Dashboard';
@@ -28,47 +29,157 @@ import HeaderManager from '../components/admin/HeaderManager';
 import Contacts from '../pages/admin/Contacts'; 
 import Products from '../pages/admin/Products';
 
-// Create a simple Home component if you don't have one
-const Home = () => {
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100">
-      <div className="text-center">
-        <h1 className="text-4xl font-bold mb-4">Welcome to the Application</h1>
-        <p className="text-gray-600">Please <a href="/login" className="text-blue-500 hover:underline">login</a> to access the admin panel</p>
-      </div>
-    </div>
-  );
-};
-
 const AppRoute = () => {
   return (
     <Routes>
+      {/* Public route - Login page */}
       <Route path="/" element={<LoginPage />} />
-      <Route path="/admin" element={<AdminDashboard />} />
-      <Route path="/admin/articles" element={<Articles />} />
-      <Route path="/admin/articles/new" element={<NewArticle />} />
-      <Route path="/admin/categories" element={<Categories />} />
-      {/* ADD THIS ROUTE - Must be before /admin/categories/:id if you have dynamic routes */}
-      <Route path="/admin/categories/:id/customize" element={<CategoryCustomize />} />
-      <Route path="/admin/authors" element={<Authors />} />
-      <Route path="/admin/multimedia" element={<Multimedia />} />
-      <Route path="/admin/premium" element={<Premium />} />
-      <Route path="/admin/seo" element={<SEO />} />
-      <Route path="/admin/advertisements" element={<Advertisements />} />
-      <Route path="/admin/comments" element={<Comments />} />
-      <Route path="/admin/notifications" element={<Notifications />} />
-      <Route path="/admin/homepage" element={<Homepage />} />
-      <Route path="/admin/videos" element={<Videos />} />
-      <Route path="/admin/analytics" element={<Analytics />} />
-      <Route path="/admin/users" element={<Users />} />
-      <Route path="/admin/magazines" element={<Magazines />} />
-      <Route path="/admin/awards" element={<Awards />} />
-      <Route path="/admin/gallery" element={<Gallery />} />
-      <Route path="/admin/settings" element={<Settings />} />
-      <Route path="/admin/inquiry" element={<Inquiry />} />
-      <Route path="/admin/header" element={<HeaderManager />} />
-      <Route path="/admin/contacts" element={<Contacts />} />
-      <Route path="/admin/products" element={<Products />} />
+      <Route path="/login" element={<LoginPage />} />
+      
+      {/* Protected Admin Routes - Only accessible when logged in */}
+      <Route path="/admin" element={
+        <ProtectedRoute requiredRole="admin">
+          <AdminDashboard />
+        </ProtectedRoute>
+      } />
+      
+      <Route path="/admin/articles" element={
+        <ProtectedRoute requiredRole="admin">
+          <Articles />
+        </ProtectedRoute>
+      } />
+      
+      <Route path="/admin/articles/new" element={
+        <ProtectedRoute requiredRole="admin">
+          <NewArticle />
+        </ProtectedRoute>
+      } />
+      
+      <Route path="/admin/categories" element={
+        <ProtectedRoute requiredRole="admin">
+          <Categories />
+        </ProtectedRoute>
+      } />
+      
+      <Route path="/admin/categories/:id/customize" element={
+        <ProtectedRoute requiredRole="admin">
+          <CategoryCustomize />
+        </ProtectedRoute>
+      } />
+      
+      <Route path="/admin/authors" element={
+        <ProtectedRoute requiredRole="admin">
+          <Authors />
+        </ProtectedRoute>
+      } />
+      
+      <Route path="/admin/multimedia" element={
+        <ProtectedRoute requiredRole="admin">
+          <Multimedia />
+        </ProtectedRoute>
+      } />
+      
+      <Route path="/admin/premium" element={
+        <ProtectedRoute requiredRole="admin">
+          <Premium />
+        </ProtectedRoute>
+      } />
+      
+      <Route path="/admin/seo" element={
+        <ProtectedRoute requiredRole="admin">
+          <SEO />
+        </ProtectedRoute>
+      } />
+      
+      <Route path="/admin/advertisements" element={
+        <ProtectedRoute requiredRole="admin">
+          <Advertisements />
+        </ProtectedRoute>
+      } />
+      
+      <Route path="/admin/comments" element={
+        <ProtectedRoute requiredRole="admin">
+          <Comments />
+        </ProtectedRoute>
+      } />
+      
+      <Route path="/admin/notifications" element={
+        <ProtectedRoute requiredRole="admin">
+          <Notifications />
+        </ProtectedRoute>
+      } />
+      
+      <Route path="/admin/homepage" element={
+        <ProtectedRoute requiredRole="admin">
+          <Homepage />
+        </ProtectedRoute>
+      } />
+      
+      <Route path="/admin/videos" element={
+        <ProtectedRoute requiredRole="admin">
+          <Videos />
+        </ProtectedRoute>
+      } />
+      
+      <Route path="/admin/analytics" element={
+        <ProtectedRoute requiredRole="admin">
+          <Analytics />
+        </ProtectedRoute>
+      } />
+      
+      <Route path="/admin/users" element={
+        <ProtectedRoute requiredRole="admin">
+          <Users />
+        </ProtectedRoute>
+      } />
+      
+      <Route path="/admin/magazines" element={
+        <ProtectedRoute requiredRole="admin">
+          <Magazines />
+        </ProtectedRoute>
+      } />
+      
+      <Route path="/admin/awards" element={
+        <ProtectedRoute requiredRole="admin">
+          <Awards />
+        </ProtectedRoute>
+      } />
+      
+      <Route path="/admin/gallery" element={
+        <ProtectedRoute requiredRole="admin">
+          <Gallery />
+        </ProtectedRoute>
+      } />
+      
+      <Route path="/admin/settings" element={
+        <ProtectedRoute requiredRole="admin">
+          <Settings />
+        </ProtectedRoute>
+      } />
+      
+      <Route path="/admin/inquiry" element={
+        <ProtectedRoute requiredRole="admin">
+          <Inquiry />
+        </ProtectedRoute>
+      } />
+      
+      <Route path="/admin/header" element={
+        <ProtectedRoute requiredRole="admin">
+          <HeaderManager />
+        </ProtectedRoute>
+      } />
+      
+      <Route path="/admin/contacts" element={
+        <ProtectedRoute requiredRole="admin">
+          <Contacts />
+        </ProtectedRoute>
+      } />
+      
+      <Route path="/admin/products" element={
+        <ProtectedRoute requiredRole="admin">
+          <Products />
+        </ProtectedRoute>
+      } />
     </Routes>
   );
 };
