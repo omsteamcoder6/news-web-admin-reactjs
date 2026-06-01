@@ -1,7 +1,7 @@
-// CreateArticleForm.jsx - UPDATED: Added 9 SEO fields with OG Image as UPLOAD FIELD
+// CreateArticleForm.jsx - UPDATED: Now using Tiptap Editor instead of TinyMCE
 import { useState, useEffect } from 'react';
 import { X, Save, Upload, Calendar, Tag, User, FolderOpen, Edit, Image as ImageIcon, Trash2, TrendingUp, Globe, Search, Link, Eye, Code, FileText } from 'lucide-react';
-import TinyMCEEditor from '../texteditor/TinyMCEEditor';
+import TiptapEditor from '../texteditor/TiptapEditor'; // Changed to Tiptap
 import categoryAPI from '../../lib/categapi';
 import authorApi from '../../lib/authorApi';
 import API from '../../lib/mergeapi';
@@ -622,7 +622,6 @@ export default function CreateArticleForm({ onSubmit, onCancel, initialData = nu
         metaDescription: articleData.metaDescription || null,
         ogTitle: articleData.ogTitle || null,
         ogDescription: articleData.ogDescription || null,
-        // If useFeaturedAsOgImage is true, don't send ogImage (will use featured image on frontend)
         ogImage: articleData.useFeaturedAsOgImage ? null : (articleData.ogImage || null),
         canonicalUrl: articleData.canonicalUrl || null,
         robotsNoIndex: articleData.robotsNoIndex || false,
@@ -660,7 +659,6 @@ export default function CreateArticleForm({ onSubmit, onCancel, initialData = nu
         metaDescription: articleData.metaDescription || null,
         ogTitle: articleData.ogTitle || null,
         ogDescription: articleData.ogDescription || null,
-        // If useFeaturedAsOgImage is true, don't send ogImage (will use featured image on frontend)
         ogImage: articleData.useFeaturedAsOgImage ? null : (articleData.ogImage || null),
         canonicalUrl: articleData.canonicalUrl || null,
         robotsNoIndex: articleData.robotsNoIndex || false,
@@ -933,17 +931,18 @@ export default function CreateArticleForm({ onSubmit, onCancel, initialData = nu
               </CardContent>
             </Card>
 
-            {/* Content - Rich Text Editor */}
+            {/* Content - Tiptap Editor (Replaced TinyMCE) */}
             <Card>
               <CardHeader>
                 <CardTitle>Article Content</CardTitle>
               </CardHeader>
               <CardContent className="p-0">
-                <TinyMCEEditor
+                <TiptapEditor
                   value={formData.content}
                   onChange={handleContentChange}
                   autoSave={false}
                   readOnly={false}
+                  documentId={isEditing ? initialData?._id : null}
                 />
               </CardContent>
             </Card>
