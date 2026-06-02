@@ -65,7 +65,6 @@ export function AdCard({ ad, onEdit, onDelete, onApprove, onReject, onPause, onR
     return null;
   };
 
-  // ✅ FIXED: Handle delete - passes only the ID string
   const handleDelete = () => {
     const adId = ad._id || ad.id;
     if (!adId) {
@@ -75,13 +74,12 @@ export function AdCard({ ad, onEdit, onDelete, onApprove, onReject, onPause, onR
     }
     
     if (onDelete) {
-      onDelete(adId);  // ✅ Pass only the ID string, not the whole object
+      onDelete(adId);
     } else {
       console.error('onDelete prop is missing');
     }
   };
 
-  // Handle resume
   const handleResume = () => {
     const adId = ad._id || ad.id;
     if (adId && onResume) {
@@ -89,7 +87,6 @@ export function AdCard({ ad, onEdit, onDelete, onApprove, onReject, onPause, onR
     }
   };
 
-  // Handle pause
   const handlePause = () => {
     const adId = ad._id || ad.id;
     if (adId && onPause) {
@@ -97,7 +94,6 @@ export function AdCard({ ad, onEdit, onDelete, onApprove, onReject, onPause, onR
     }
   };
 
-  // Handle approve
   const handleApprove = () => {
     const adId = ad._id || ad.id;
     if (adId && onApprove) {
@@ -105,7 +101,6 @@ export function AdCard({ ad, onEdit, onDelete, onApprove, onReject, onPause, onR
     }
   };
 
-  // Handle reject
   const handleReject = () => {
     const adId = ad._id || ad.id;
     if (adId && onReject) {
@@ -113,7 +108,6 @@ export function AdCard({ ad, onEdit, onDelete, onApprove, onReject, onPause, onR
     }
   };
 
-  // Handle edit
   const handleEdit = () => {
     if (onEdit) {
       onEdit(ad);
@@ -212,6 +206,18 @@ export function AdCard({ ad, onEdit, onDelete, onApprove, onReject, onPause, onR
               )}
             </div>
           )}
+
+          {/* Ad Slot Assignment Badges - No warning message shown when no slot assigned */}
+          {(ad.adSlot1Enabled || ad.adSlot2Enabled) && (
+            <div className="flex flex-wrap gap-2 text-xs text-slate-500 mt-2">
+              <span className="px-2 py-1 bg-slate-100 rounded flex items-center gap-1">
+                📌 Assigned Slots: 
+                {ad.adSlot1Enabled && ' Slot 1'}
+                {ad.adSlot1Enabled && ad.adSlot2Enabled && ' +'}
+                {ad.adSlot2Enabled && ' Slot 2'}
+              </span>
+            </div>
+          )}
         </div>
 
         {/* Action Buttons */}
@@ -243,7 +249,6 @@ export function AdCard({ ad, onEdit, onDelete, onApprove, onReject, onPause, onR
             <Edit2 className="w-4 h-4 text-slate-600" />
           </button>
           
-          {/* ✅ FIXED: Delete button with proper handler - passes only ID */}
           <button 
             className="p-2 hover:bg-red-50 rounded transition" 
             onClick={handleDelete}

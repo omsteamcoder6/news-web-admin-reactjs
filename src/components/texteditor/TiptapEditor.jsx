@@ -77,7 +77,7 @@ const TiptapEditor = ({
         limit: null,
       }),
     ],
-    content: value || "<p>Start writing your article here...</p>",
+    content: value || "",
     editable: !readOnly,
     editorProps: {
       attributes: {

@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Client Ad Boxes Setup</title>
+  <style>
+    /* General page styling just for preview */
+    body {
+      font-family: Arial, sans-serif;
+      margin: 40px auto;
+      max-width: 800px;
+      padding: 0 20px;
+      background-color: #fafafa;
+    }
+
+    h2 {
+      text-align: center;
+      color: #333;
+    }
+
+    /* --- AD DEVELOPEMENT CODE STARTS HERE --- */
+
+    /* Container holding both ad boxes */
+    .ad-container {
+      display: flex;
+      gap: 20px;
+      justify-content: center;
+      margin: 30px 0;
+      flex-wrap: wrap; /* Automatically stacks boxes on mobile screens */
+    }
+
+    /* Individual Ad Box Styling (Standard 300x250 Medium Rectangle) */
+    .ad-box {
+      width: 300px;
+      height: 250px;
+      background-color: #f0f0f0;
+      border: 1px dashed #bbb;
+      border-radius: 4px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      box-sizing: border-box;
+    }
+
+    /* Small "Advertisement" label required by most ad networks */
+    .ad-label {
+      color: #999;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 8px;
+    }
+
+    /* Placeholder text inside the box until the real ad script arrives */
+    .ad-placeholder {
+      color: #666;
+      font-weight: bold;
+      font-size: 14px;
+    }
+
+    /* Collapses the box entirely if an ad-blocker prevents it from loading */
+    .ad-box:empty {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+
+  <h2>Website Content Area</h2>
+  <p>This is where your client's main website text or product listing goes. The two ad boxes are placed right below this container.</p>
+
+  <!-- HTML for the Two Ad Boxes -->
+  <div class="ad-container">
+    
+    <!-- First Ad Box -->
+    <div class="ad-box">
+      <span class="ad-label">Advertisement</span>
+      <span class="ad-placeholder">Ad Slot #1 (300x250)</span>
+      <!-- Client's Google AdSense or Ad script goes here later -->
+    </div>
+
+    <!-- Second Ad Box -->
+    <div class="ad-box">
+      <span class="ad-label">Advertisement</span>
+      <span class="ad-placeholder">Ad Slot #2 (300x250)</span>
+      <!-- Client's Google AdSense or Ad script goes here later -->
+    </div>
+
+  </div>
+
+  <p>More website content continues down here below the advertisement boxes.</p>
+
+</body>
+</html>

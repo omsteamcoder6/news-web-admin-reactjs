@@ -1,164 +1,375 @@
-import { Search, User, ChevronDown, LogOut } from "lucide-react";
-import { MainLayout } from "../../layout/MainLayout";
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from 'react';
+import axios from 'axios';
+import { 
+  Save, RotateCcw, Plus, Trash2, Edit2, 
+  Eye, EyeOff, Upload, Layers, Settings, Layout
+} from 'lucide-react';
 
-// Use environment variables
-const API_BASE_URL = import.meta.env.VITE_API_URL ;
-const MEDIA_BASE_URL = import.meta.env.VITE_MEDIA_BASE_URL ;
-
-export default function Header() {
-  const [headerData, setHeaderData] = useState(null);
+const Header = () => {
+  const [settings, setSettings] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [navLinks, setNavLinks] = useState([]);
-  const [logoUrl, setLogoUrl] = useState("/logo-icon.png");
-  const [brandName, setBrandName] = useState("Readers Inspiration");
+  const [activeTab, setActiveTab] = useState('nav'); // 'nav', 'sections', 'style'
+  
+  // Form States
+  const [newNavItem, setNewNavItem] = useState({ label: '', href: '', isActive: true });
+  const [editingItem, setEditingItem] = useState(null);
 
-  // Fetch header settings from API
   useEffect(() => {
-    const fetchHeaderSettings = async () => {
-      try {
-        const response = await fetch(`${API_BASE_URL}/header`);
-        const result = await response.json();
-        
-        if (result.success && result.data) {
-          const data = result.data;
-          setHeaderData(data);
-          
-          // Set navigation links from API
-          if (data.navItems && Array.isArray(data.navItems)) {
-            const activeNavItems = data.navItems.filter(item => item.isActive !== false);
-            setNavLinks(activeNavItems);
-          }
-          
-          // Set brand name from API
-          if (data.brandName) {
-            setBrandName(data.brandName);
-          }
-          
-          // Set logo URL from API (prepend media base URL)
-          if (data.logoUrl) {
-            const cleanLogoUrl = data.logoUrl.startsWith('/') ? data.logoUrl : `/${data.logoUrl}`;
-            setLogoUrl(`${MEDIA_BASE_URL}${cleanLogoUrl}`);
-          }
-        }
-      } catch (error) {
-        console.error("Error fetching header settings:", error);
-        // Fallback to default values if API fails
-        setNavLinks([
-          { name: "Home", href: "/", hasDropdown: false },
-          { name: "News", href: "/news", hasDropdown: true },
-          { name: "Products", href: "/products", hasDropdown: true },
-          { name: "Awards", href: "/awards", hasDropdown: false },
-          { name: "Events", href: "/events", hasDropdown: false },
-          { name: "Gallery", href: "/gallery", hasDropdown: false },
-          { name: "Contact Us", href: "/contact", hasDropdown: false },
-        ]);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchHeaderSettings();
+    fetchSettings();
   }, []);
 
-  // Show loading or minimal header while fetching
+  const fetchSettings = async () => {
+    try {
+      setLoading(true);
+      const res = await axios.get('/api/header');
+      if (res.data.success) {
+        setSettings(res.data.data);
+      }
+    } catch (err) {
+      console.error("Error fetching header settings:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Toggle Navigation Item Active Status
+  const handleToggleActive = async (itemId, currentStatus) => {
+    try {
+      // Optimistically update frontend state for instant UI change
+      setSettings(prev => ({
+        ...prev,
+        navItems: prev.navItems.map(item => 
+          item._id === itemId ? { ...item, isActive: !currentStatus } : item
+        )
+      }));
+
+      // Call API to persist in MongoDB database
+      const token = localStorage.getItem('token');
+      await axios.patch(`/api/header/nav-items/${itemId}/toggle-active`, 
+        { isActive: !currentStatus },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+    } catch (err) {
+      console.error("Error toggling status:", err);
+      // Revert back if API fails
+      fetchSettings();
+    }
+  };
+
+  const handleInputChange = (e) => {
+    const { name, value, type, checked } = e.target;
+    setSettings(prev => ({
+      ...prev,
+      [name]: type === 'checkbox' ? checked : value
+    }));
+  };
+
+  const handleSaveSettings = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const res = await axios.put('/api/header', settings, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.data.success) {
+        alert('Settings saved successfully!');
+      }
+    } catch (err) {
+      console.error("Error saving settings:", err);
+      alert('Failed to save settings.');
+    }
+  };
+
+  const handleResetSettings = async () => {
+    if (!window.confirm('Are you sure you want to reset header settings to default?')) return;
+    try {
+      const token = localStorage.getItem('token');
+      const res = await axios.post('/api/header/reset', {}, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.data.success) {
+        setSettings(res.data.data);
+        alert('Settings reset successfully!');
+      }
+    } catch (err) {
+      console.error("Error resetting settings:", err);
+    }
+  };
+
+  const handleAddNavItem = async (e) => {
+    e.preventDefault();
+    if (!newNavItem.label || !newNavItem.href) return;
+    try {
+      const token = localStorage.getItem('token');
+      const res = await axios.post('/api/header/nav-items', newNavItem, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.data.success) {
+        setSettings(res.data.data);
+        setNewNavItem({ label: '', href: '', isActive: true });
+      }
+    } catch (err) {
+      console.error("Error adding nav item:", err);
+    }
+  };
+
+  const handleDeleteNavItem = async (itemId) => {
+    if (!window.confirm('Delete this navigation item?')) return;
+    try {
+      const token = localStorage.getItem('token');
+      const res = await axios.delete(`/api/header/nav-items/${itemId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.data.success) {
+        setSettings(res.data.data);
+      }
+    } catch (err) {
+      console.error("Error deleting nav item:", err);
+    }
+  };
+
+  const handleUpdateNavItem = async (e) => {
+    e.preventDefault();
+    try {
+      const token = localStorage.getItem('token');
+      const res = await axios.put(`/api/header/nav-items/${editingItem._id}`, editingItem, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.data.success) {
+        setSettings(res.data.data);
+        setEditingItem(null);
+      }
+    } catch (err) {
+      console.error("Error updating nav item:", err);
+    }
+  };
+
+  const handleToggleSection = async (sectionName, currentStatus) => {
+    try {
+      setSettings(prev => ({
+        ...prev,
+        sections: prev.sections.map(s => 
+          s.name === sectionName ? { ...s, isEnabled: !currentStatus } : s
+        )
+      }));
+
+      const token = localStorage.getItem('token');
+      await axios.patch(`/api/header/section/${sectionName}/toggle`, 
+        { isEnabled: !currentStatus },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+    } catch (err) {
+      console.error("Error toggling section:", err);
+      fetchSettings();
+    }
+  };
+
+  const handleLogoUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append('logo', file);
+
+    try {
+      const token = localStorage.getItem('token');
+      const res = await axios.post('/api/header/upload-logo', formData, {
+        headers: { 
+          'Content-Type': 'multipart/form-data',
+          Authorization: `Bearer ${token}` 
+        }
+      });
+      if (res.data.success) {
+        setSettings(prev => ({ ...prev, logoUrl: res.data.data.logoUrl }));
+        alert('Logo uploaded successfully!');
+      }
+    } catch (err) {
+      console.error("Error uploading logo:", err);
+      alert('Logo upload failed.');
+    }
+  };
+
   if (loading) {
-    return (
-      <MainLayout>
-        <header className="w-full bg-white border-b border-gray-100">
-          <div className="max-w-7xl mx-auto px-4 py-4">
-            <div className="animate-pulse flex justify-center">
-              <div className="h-8 w-48 bg-gray-200 rounded"></div>
-            </div>
-          </div>
-        </header>
-      </MainLayout>
-    );
+    return <div className="p-6 text-center text-gray-500">Loading Configuration...</div>;
   }
 
   return (
-    <MainLayout>
-      <header className="w-full bg-white border-b border-gray-100">
-        {/* 1. TOP BAR: Search, Logo, Profile */}
-        <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex-1">
-            <button className="p-2 hover:bg-gray-100 rounded-full transition-colors">
-              <Search className="w-5 h-5 text-gray-600" />
-            </button>
-          </div>
+    <div className="p-6 max-w-6xl mx-auto bg-white shadow rounded-lg">
+      <div className="flex justify-between items-center border-b pb-4 mb-6">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
+            <Layout className="w-6 h-6 text-indigo-600" /> Header Configuration
+          </h1>
+          <p className="text-sm text-gray-500">Manage navigation menu links, visibility layout rules, and branding</p>
+        </div>
+        <div className="flex gap-2">
+          <button onClick={handleResetSettings} className="flex items-center gap-1 px-3 py-2 border text-gray-600 rounded hover:bg-gray-50 text-sm">
+            <RotateCcw className="w-4 h-4" /> Reset
+          </button>
+          <button onClick={handleSaveSettings} className="flex items-center gap-1 px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 text-sm font-medium">
+            <Save className="w-4 h-4" /> Save Setup
+          </button>
+        </div>
+      </div>
 
-          <div className="flex-[2] flex flex-col items-center">
-            <div className="flex items-center gap-3">
-              <img 
-                src={logoUrl}
-                alt="Logo" 
-                className="w-10 h-10 object-contain"
-                onError={(e) => {
-                  e.target.src = "/logo-icon.png";
-                }}
-              />
-              <h1 className="text-3xl font-serif font-bold tracking-widest text-gray-900 uppercase">
-                {brandName}
-              </h1>
+      {/* Tab Navigation */}
+      <div className="flex border-b mb-6">
+        <button onClick={() => setActiveTab('nav')} className={`px-4 py-2 font-medium text-sm border-b-2 -mb-px transition-all ${activeTab === 'nav' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
+          Navigation Links
+        </button>
+        <button onClick={() => setActiveTab('sections')} className={`px-4 py-2 font-medium text-sm border-b-2 -mb-px transition-all ${activeTab === 'sections' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
+          Layout Sections
+        </button>
+        <button onClick={() => setActiveTab('style')} className={`px-4 py-2 font-medium text-sm border-b-2 -mb-px transition-all ${activeTab === 'style' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
+          Branding & Styling
+        </button>
+      </div>
+
+      {/* TAB 1: NAVIGATION LINKS */}
+      {activeTab === 'nav' && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="md:col-span-2 space-y-4">
+            <h3 className="text-lg font-semibold text-gray-700">Menu Structuring</h3>
+            
+            <div className="space-y-2 border p-3 rounded-lg bg-gray-50">
+              {settings.navItems?.map((item) => (
+                <div key={item._id} className="flex items-center justify-between bg-white p-3 rounded border shadow-sm group">
+                  <div>
+                    <p className="font-medium text-gray-800 text-sm">{item.label}</p>
+                    <p className="text-xs text-gray-400">{item.href}</p>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    {/* STATUS TOGGLE BUTTON */}
+                    <button
+                      onClick={() => handleToggleActive(item._id, item.isActive)}
+                      className={`px-2.5 py-1 text-xs font-semibold rounded-full border transition-all ${
+                        item.isActive 
+                          ? 'bg-green-50 border-green-200 text-green-700 hover:bg-green-100' 
+                          : 'bg-red-50 border-red-200 text-red-700 hover:bg-red-100'
+                      }`}
+                    >
+                      {item.isActive ? 'Active' : 'Disabled'}
+                    </button>
+
+                    <button onClick={() => setEditingItem(item)} className="p-1 text-gray-500 hover:bg-gray-100 rounded">
+                      <Edit2 className="w-4 h-4" />
+                    </button>
+                    <button onClick={() => handleDeleteNavItem(item._id)} className="p-1 text-red-500 hover:bg-red-50 rounded">
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
 
-          <div className="flex-1 flex items-center justify-end gap-4">
-            <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 rounded-md border border-gray-200">
-              <div className="bg-gray-200 p-1 rounded-md">
-                <User className="w-4 h-4 text-gray-600" />
-              </div>
-              <span className="text-sm font-medium text-gray-700">richardblesso</span>
-              <LogOut className="w-4 h-4 text-gray-400 cursor-pointer hover:text-red-500" />
-            </div>
-            <button className="px-6 py-2 border-2 border-amber-200 text-amber-700 text-xs font-bold uppercase tracking-widest hover:bg-amber-50 transition-colors">
-              Subscribe
-            </button>
+          <div>
+            <h3 className="text-lg font-semibold text-gray-700 mb-4">{editingItem ? 'Edit Item' : 'Create Menu Item'}</h3>
+            {editingItem ? (
+              <form onSubmit={handleUpdateNavItem} className="space-y-3 bg-gray-50 p-4 border rounded-lg">
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Display Label</label>
+                  <input type="text" value={editingItem.label} onChange={e => setEditingItem({...editingItem, label: e.target.value})} className="w-full border p-2 text-sm rounded focus:outline-indigo-600" required />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Redirection Path (URL)</label>
+                  <input type="text" value={editingItem.href} onChange={e => setEditingItem({...editingItem, href: e.target.value})} className="w-full border p-2 text-sm rounded focus:outline-indigo-600" required />
+                </div>
+                <div className="flex gap-2 pt-2">
+                  <button type="submit" className="flex-1 bg-green-600 text-white text-sm py-2 rounded font-medium hover:bg-green-700">Update</button>
+                  <button type="button" onClick={() => setEditingItem(null)} className="bg-gray-200 text-gray-700 text-sm px-3 rounded hover:bg-gray-300">Cancel</button>
+                </div>
+              </form>
+            ) : (
+              <form onSubmit={handleAddNavItem} className="space-y-3 bg-gray-50 p-4 border rounded-lg">
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Display Label</label>
+                  <input type="text" value={newNavItem.label} onChange={e => setNewNavItem({...newNavItem, label: e.target.value})} placeholder="e.g., Blogs" className="w-full border p-2 text-sm rounded focus:outline-indigo-600" required />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Redirection Path (URL)</label>
+                  <input type="text" value={newNavItem.href} onChange={e => setNewNavItem({...newNavItem, href: e.target.value})} placeholder="e.g., /blogs" className="w-full border p-2 text-sm rounded focus:outline-indigo-600" required />
+                </div>
+                <button type="submit" className="w-full flex items-center justify-center gap-1 bg-indigo-600 text-white text-sm py-2 rounded font-medium hover:bg-indigo-700 mt-2">
+                  <Plus className="w-4 h-4" /> Add Item
+                </button>
+              </form>
+            )}
           </div>
         </div>
+      )}
 
-        {/* 2. NAVIGATION MENU - Dynamic from API */}
-        <nav className="border-t border-gray-100">
-          <ul className="flex items-center justify-center gap-8 py-3">
-            {navLinks.map((link) => (
-              <li key={link.label || link.name}>
-                <a 
-                  href={link.href} 
-                  className="flex items-center gap-1 text-[13px] font-medium text-gray-700 hover:text-amber-600 transition-colors"
+      {/* TAB 2: LAYOUT SECTIONS */}
+      {activeTab === 'sections' && (
+        <div className="space-y-4 max-w-2xl">
+          <h3 className="text-lg font-semibold text-gray-700">Manage Section Visibility</h3>
+          <div className="border rounded-lg divide-y bg-gray-50">
+            {settings.sections?.map((section) => (
+              <div key={section.name} className="flex items-center justify-between p-4 bg-white">
+                <div>
+                  <p className="font-semibold capitalize text-gray-700 text-sm">{section.name.replace(/([A-Z])/g, ' $1')}</p>
+                  <p className="text-xs text-gray-400">Render visibility status on public endpoints</p>
+                </div>
+                <button
+                  onClick={() => handleToggleSection(section.name, section.isEnabled)}
+                  className={`p-1.5 border rounded transition-all ${section.isEnabled ? 'bg-indigo-50 border-indigo-200 text-indigo-600' : 'bg-gray-50 text-gray-400'}`}
                 >
-                  {link.label || link.name}
-                  {(link.hasDropdown) && <ChevronDown className="w-3 h-3" />}
-                </a>
-              </li>
+                  {section.isEnabled ? <Eye className="w-5 h-5" /> : <EyeOff className="w-5 h-5" />}
+                </button>
+              </div>
             ))}
-          </ul>
-        </nav>
-
-        {/* 3. TRENDING BAR - Keeping as is (already managed by TrendingBar component) */}
-        <div className="w-full flex items-center bg-white border-t border-b border-gray-100 h-12 overflow-hidden">
-          <div className="bg-red-600 text-white px-4 h-full flex items-center shrink-0">
-            <span className="flex items-center gap-2 text-xs font-black uppercase tracking-tighter italic">
-              <span className="w-2 h-2 bg-white rounded-full animate-pulse" />
-              Trending Now
-            </span>
-          </div>
-          
-          <div className="bg-[#2a2a2a] text-white px-4 h-full flex items-center gap-2 shrink-0">
-            <span className="text-lg">📰</span>
-            <span className="text-xs font-bold uppercase tracking-tight">Today News Live</span>
-            <span className="bg-red-600/20 text-red-500 text-[10px] px-1.5 py-0.5 rounded border border-red-500/30 font-bold leading-none">
-              LIVE
-            </span>
-          </div>
-
-          <div className="flex items-center gap-4 px-6 overflow-hidden">
-            {/* Trending items will be handled by TrendingBar component */}
-            <span className="text-sm font-medium text-gray-400">
-              Loading trending...
-            </span>
           </div>
         </div>
-      </header>
-    </MainLayout>
+      )}
+
+      {/* TAB 3: BRANDING & STYLING */}
+      {activeTab === 'style' && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="space-y-4 border p-4 rounded-lg bg-gray-50">
+            <h3 className="text-md font-semibold text-gray-700 flex items-center gap-1"><Settings className="w-4 h-4"/> Identity Settings</h3>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Brand Name</label>
+              <input type="text" name="brandName" value={settings.brandName || ''} onChange={handleInputChange} className="w-full border p-2 text-sm rounded focus:outline-indigo-600" />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Corporate Header Logo</label>
+              <div className="flex items-center gap-3 mt-1">
+                {settings.logoUrl && <img src={settings.logoUrl} alt="Logo Preview" className="h-10 max-w-[120px] object-contain border p-1 rounded bg-white" />}
+                <label className="flex items-center gap-1 px-3 py-1.5 border bg-white rounded cursor-pointer text-xs text-gray-600 hover:bg-gray-50 shadow-sm font-medium">
+                  <Upload className="w-3.5 h-3.5" /> Upload File
+                  <input type="file" onChange={handleLogoUpload} className="hidden" accept="image/*" />
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-4 border p-4 rounded-lg bg-gray-50">
+            <h3 className="text-md font-semibold text-gray-700 flex items-center gap-1"><Layers className="w-4 h-4"/> Layout Colors</h3>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Background Color</label>
+                <div className="flex gap-2">
+                  <input type="color" name="backgroundColor" value={settings.backgroundColor || '#ffffff'} onChange={handleInputChange} className="w-8 h-8 rounded cursor-pointer border p-0" />
+                  <input type="text" name="backgroundColor" value={settings.backgroundColor || ''} onChange={handleInputChange} className="flex-1 border px-2 text-xs rounded" />
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Text Color</label>
+                <div className="flex gap-2">
+                  <input type="color" name="textColor" value={settings.textColor || '#000000'} onChange={handleInputChange} className="w-8 h-8 rounded cursor-pointer border p-0" />
+                  <input type="text" name="textColor" value={settings.textColor || ''} onChange={handleInputChange} className="flex-1 border px-2 text-xs rounded" />
+                </div>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 pt-2">
+              <input type="checkbox" id="isSticky" name="isSticky" checked={settings.isSticky || false} onChange={handleInputChange} className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
+              <label htmlFor="isSticky" className="text-xs font-medium text-gray-700 select-none">Enable Fixed Sticky Header Layout on Scroll</label>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
   );
-}
+};
+
+export default Header;

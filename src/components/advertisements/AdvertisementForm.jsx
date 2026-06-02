@@ -3,88 +3,88 @@ import { useState, useEffect, useRef } from 'react';
 // ─── Data ────────────────────────────────────────────────────────────────────
 
 const POSITION_CATEGORIES = {
-  'Header': ['Above Logo', 'Below Logo', 'Full Width Strip', 'Sticky Header'],
-  'Navigation': ['Inside Menu', 'Beside Menu', 'Dropdown Menu'],
-  'Content': ['Before Title', 'After Title', 'Before Content', 'After Content', 'Between Paragraphs', 'After 1st Paragraph', 'After 2nd Paragraph', 'After 3rd Paragraph', 'Between Images'],
-  'Sidebar': ['Top Sidebar', 'Middle Sidebar', 'Bottom Sidebar', 'Sticky Sidebar'],
-  'Footer': ['Above Footer', 'Inside Footer', 'After Footer', 'Sticky Footer'],
-  'Between Posts': ['Every 1st Post', 'Every 2nd Post', 'Every 3rd Post', 'After Every Post'],
-  'Video Player': ['Pre-roll', 'Mid-roll', 'Post-roll', 'Pause Ad'],
-  
-  // ========== POPUP POSITIONS (47 Options) ==========
-  'Popup': [
-    // Original Positions
-    'On Load',
-    'On Scroll',
-    'On Exit Intent',
-    'On Click',
-    'Timed Popup',
-    
-    // Time-Based Positions
-    'On Load Delay 5s',
-    'On Load Delay 10s',
-    'On Load Delay 30s',
-    'On Idle',
-    'On Return',
-    'Every 30s',
-    'Every 60s',
-    
-    // Scroll-Based Positions
-    'On Scroll 25%',
-    'On Scroll 50%',
-    'On Scroll 75%',
-    'On Scroll 100%',
-    'On Scroll Up',
-    'On Scroll Down',
-    'After First Scroll',
-    
-    // Interaction-Based Positions
-    'On Click Anywhere',
-    'On Click Link',
-    'On Button Hover',
-    'On Image Click',
-    'On Form Focus',
-    'On Video Pause',
-    'On Video End',
-    
-    // Page Navigation Positions
-    'On Page Change',
-    'On Back Button',
-    'On Refresh',
-    'Before Unload',
-    
-    // Element-Based Positions
-    'On Menu Open',
-    'On Search',
-    'On Filter',
-    'On Add to Cart',
-    'On Checkout',
-    'On Share',
-    
-    // Session-Based Positions
-    'On First Visit',
-    'On Second Visit',
-    'Every 3rd Page',
-    'On Return Visit',
-    'After 5 Seconds',
-    'After 10 Seconds',
-    
-    // Mobile-Specific Positions
-    'On Swipe',
-    'On Orientation Change',
-    'On Touch Start',
-    'On Mobile Menu',
-    'On Keyboard Open'
-  ],
-  // ========== END OF POPUP POSITIONS ==========
-  
-  'Floating': ['Corner Widget', 'Sticky Bottom', 'Slide-in Left', 'Slide-in Right'],
-  'Interstitial': ['Full Screen', 'Between Pages'],
-  'Homepage Premium': ['Top Banner', 'Middle Banner', 'Bottom Banner'],
-  'Article Middle': ['After Title', 'Before Content', 'After Content', 'Between Paragraphs'],
-  'Top Banner': ['Top of Page', 'Below Header'],
-  'Between News Cards': ['Between Card 1-2', 'Between Card 2-3', 'Between Card 3-4'],
-  'Sticky Bottom': ['Fixed Bottom']
+    'Header': ['Above Logo', 'Below Logo', 'Full Width Strip', 'Sticky Header'],
+    'Navigation': ['Inside Menu', 'Beside Menu', 'Dropdown Menu'],
+    'Content': ['Before Title', 'After Title', 'Before Content', 'After Content', 'Between Paragraphs', 'After 1st Paragraph', 'After 2nd Paragraph', 'After 3rd Paragraph', 'Between Images'],
+    'Sidebar': ['Top Sidebar', 'Middle Sidebar', 'Bottom Sidebar', 'Sticky Sidebar'],
+    'Footer': ['Above Footer', 'Inside Footer', 'After Footer', 'Sticky Footer'],
+    'Between Posts': ['Every 1st Post', 'Every 2nd Post', 'Every 3rd Post', 'After Every Post'],
+    'Video Player': ['Pre-roll', 'Mid-roll', 'Post-roll', 'Pause Ad'],
+
+    // ========== POPUP POSITIONS (47 Options) ==========
+    'Popup': [
+        // Original Positions
+        'On Load',
+        'On Scroll',
+        'On Exit Intent',
+        'On Click',
+        'Timed Popup',
+
+        // Time-Based Positions
+        'On Load Delay 5s',
+        'On Load Delay 10s',
+        'On Load Delay 30s',
+        'On Idle',
+        'On Return',
+        'Every 30s',
+        'Every 60s',
+
+        // Scroll-Based Positions
+        'On Scroll 25%',
+        'On Scroll 50%',
+        'On Scroll 75%',
+        'On Scroll 100%',
+        'On Scroll Up',
+        'On Scroll Down',
+        'After First Scroll',
+
+        // Interaction-Based Positions
+        'On Click Anywhere',
+        'On Click Link',
+        'On Button Hover',
+        'On Image Click',
+        'On Form Focus',
+        'On Video Pause',
+        'On Video End',
+
+        // Page Navigation Positions
+        'On Page Change',
+        'On Back Button',
+        'On Refresh',
+        'Before Unload',
+
+        // Element-Based Positions
+        'On Menu Open',
+        'On Search',
+        'On Filter',
+        'On Add to Cart',
+        'On Checkout',
+        'On Share',
+
+        // Session-Based Positions
+        'On First Visit',
+        'On Second Visit',
+        'Every 3rd Page',
+        'On Return Visit',
+        'After 5 Seconds',
+        'After 10 Seconds',
+
+        // Mobile-Specific Positions
+        'On Swipe',
+        'On Orientation Change',
+        'On Touch Start',
+        'On Mobile Menu',
+        'On Keyboard Open'
+    ],
+    // ========== END OF POPUP POSITIONS ==========
+
+    'Floating': ['Corner Widget', 'Sticky Bottom', 'Slide-in Left', 'Slide-in Right'],
+    'Interstitial': ['Full Screen', 'Between Pages'],
+    'Homepage Premium': ['Top Banner', 'Middle Banner', 'Bottom Banner'],
+    'Article Middle': ['After Title', 'Before Content', 'After Content', 'Between Paragraphs'],
+    'Top Banner': ['Top of Page', 'Below Header'],
+    'Between News Cards': ['Between Card 1-2', 'Between Card 2-3', 'Between Card 3-4'],
+    'Sticky Bottom': ['Fixed Bottom']
 };
 
 const ROTATION_METHODS = [
@@ -127,7 +127,10 @@ const defaultForm = () => ({
     deviceCategory: 'both',
     displayDuration: null,
     autoHide: false,
-    autoClosePopup: true
+    autoClosePopup: true,
+    // NEW: Ad Slot Assignment Fields
+    adSlot1Enabled: false,
+    adSlot2Enabled: false,
 });
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
@@ -379,7 +382,7 @@ function MultipleImageUpload({ images = [], onChange, maxImages = 10 }) {
             alert(`Maximum ${maxImages} images allowed`);
             return;
         }
-        
+
         const newImage = {
             id: Date.now() + Math.random(),
             file: file,
@@ -392,7 +395,7 @@ function MultipleImageUpload({ images = [], onChange, maxImages = 10 }) {
     const handleMultipleFiles = (files) => {
         const remainingSlots = maxImages - images.length;
         const filesToUpload = Array.from(files).slice(0, remainingSlots);
-        
+
         filesToUpload.forEach(file => {
             if (file.type.startsWith('image/')) {
                 const newImage = {
@@ -686,152 +689,152 @@ function NativeAdFields({ brandName, brandLogo, onBrandNameChange, onBrandLogoCh
 // ─── Ad Size Selector Component ───────────────────────────────────────────
 
 function AdSizeSelector({ selectedSize, onSizeChange, placementCategory, onDeviceCategoryChange }) {
-  const [sizeError, setSizeError] = useState(null);
-  const [imageDimensions, setImageDimensions] = useState(null);
-  
-  // All available ad sizes with descriptions
-  const ALL_AD_SIZES = [
-    // Desktop Sizes
-    { width: 728, height: 90, label: 'Leaderboard', description: 'Top of desktop website', category: 'desktop', placement: 'Header, Footer' },
-    { width: 970, height: 90, label: 'Large Leaderboard', description: 'Premium desktop header', category: 'desktop', placement: 'Header' },
-    { width: 970, height: 250, label: 'Billboard', description: 'High revenue homepage banner', category: 'desktop', placement: 'Homepage Premium' },
-    { width: 300, height: 250, label: 'Medium Rectangle', description: 'Inside articles/content', category: 'desktop,mobile', placement: 'Article Middle, Between News Cards' },
-    { width: 336, height: 280, label: 'Large Rectangle', description: 'Blog/news article ads', category: 'desktop', placement: 'Article Middle' },
-    { width: 160, height: 600, label: 'Wide Skyscraper', description: 'Sidebar desktop ads', category: 'desktop', placement: 'Sidebar' },
-    { width: 300, height: 600, label: 'Half Page', description: 'High CPM sidebar ads', category: 'desktop', placement: 'Sidebar' },
-    // Mobile Sizes
-    { width: 320, height: 50, label: 'Mobile Banner', description: 'Mobile top/bottom', category: 'mobile', placement: 'Top Banner, Sticky Bottom' },
-    { width: 320, height: 100, label: 'Large Mobile Banner', description: 'Better mobile revenue', category: 'mobile', placement: 'Top Banner' },
-    { width: 300, height: 250, label: 'Mobile Rectangle', description: 'Mobile article ads', category: 'mobile', placement: 'Between News Cards' }
-  ];
+    const [sizeError, setSizeError] = useState(null);
+    const [imageDimensions, setImageDimensions] = useState(null);
 
-  // Filter sizes based on placement category
-  const getFilteredSizes = () => {
-    const desktopPlacements = ['Header', 'Homepage Premium', 'Article Middle', 'Sidebar', 'Footer'];
-    const isDesktop = desktopPlacements.includes(placementCategory);
-    
-    if (isDesktop) {
-      return ALL_AD_SIZES.filter(size => size.category.includes('desktop'));
-    } else {
-      return ALL_AD_SIZES.filter(size => size.category.includes('mobile'));
-    }
-  };
+    // All available ad sizes with descriptions
+    const ALL_AD_SIZES = [
+        // Desktop Sizes
+        { width: 728, height: 90, label: 'Leaderboard', description: 'Top of desktop website', category: 'desktop', placement: 'Header, Footer' },
+        { width: 970, height: 90, label: 'Large Leaderboard', description: 'Premium desktop header', category: 'desktop', placement: 'Header' },
+        { width: 970, height: 250, label: 'Billboard', description: 'High revenue homepage banner', category: 'desktop', placement: 'Homepage Premium' },
+        { width: 300, height: 250, label: 'Medium Rectangle', description: 'Inside articles/content', category: 'desktop,mobile', placement: 'Article Middle, Between News Cards' },
+        { width: 336, height: 280, label: 'Large Rectangle', description: 'Blog/news article ads', category: 'desktop', placement: 'Article Middle' },
+        { width: 160, height: 600, label: 'Wide Skyscraper', description: 'Sidebar desktop ads', category: 'desktop', placement: 'Sidebar' },
+        { width: 300, height: 600, label: 'Half Page', description: 'High CPM sidebar ads', category: 'desktop', placement: 'Sidebar' },
+        // Mobile Sizes
+        { width: 320, height: 50, label: 'Mobile Banner', description: 'Mobile top/bottom', category: 'mobile', placement: 'Top Banner, Sticky Bottom' },
+        { width: 320, height: 100, label: 'Large Mobile Banner', description: 'Better mobile revenue', category: 'mobile', placement: 'Top Banner' },
+        { width: 300, height: 250, label: 'Mobile Rectangle', description: 'Mobile article ads', category: 'mobile', placement: 'Between News Cards' }
+    ];
 
-  const availableSizes = getFilteredSizes();
-  const deviceType = availableSizes[0]?.category === 'desktop' ? 'desktop' : 'mobile';
+    // Filter sizes based on placement category
+    const getFilteredSizes = () => {
+        const desktopPlacements = ['Header', 'Homepage Premium', 'Article Middle', 'Sidebar', 'Footer'];
+        const isDesktop = desktopPlacements.includes(placementCategory);
 
-  // Update device category when placement changes
-  useEffect(() => {
-    if (onDeviceCategoryChange) {
-      onDeviceCategoryChange(deviceType);
-    }
-  }, [deviceType, onDeviceCategoryChange]);
+        if (isDesktop) {
+            return ALL_AD_SIZES.filter(size => size.category.includes('desktop'));
+        } else {
+            return ALL_AD_SIZES.filter(size => size.category.includes('mobile'));
+        }
+    };
 
-  const handleSizeChange = (e) => {
-    const selectedValue = e.target.value;
-    if (selectedValue) {
-      const size = JSON.parse(selectedValue);
-      onSizeChange(size);
-      setSizeError(null);
-      setImageDimensions(null);
-    }
-  };
+    const availableSizes = getFilteredSizes();
+    const deviceType = availableSizes[0]?.category === 'desktop' ? 'desktop' : 'mobile';
 
-  const getSelectedValue = () => {
-    if (selectedSize) {
-      return JSON.stringify({
-        width: selectedSize.width,
-        height: selectedSize.height,
-        label: selectedSize.label,
-        description: selectedSize.description
-      });
-    }
-    return '';
-  };
+    // Update device category when placement changes
+    useEffect(() => {
+        if (onDeviceCategoryChange) {
+            onDeviceCategoryChange(deviceType);
+        }
+    }, [deviceType, onDeviceCategoryChange]);
 
-  const dropdownStyle = {
-    width: '100%',
-    padding: '12px 14px',
-    borderRadius: '10px',
-    border: '1.5px solid #e8e8e8',
-    background: '#fafafa',
-    fontSize: '14px',
-    color: '#111',
-    cursor: 'pointer',
-    outline: 'none',
-    fontFamily: 'inherit'
-  };
+    const handleSizeChange = (e) => {
+        const selectedValue = e.target.value;
+        if (selectedValue) {
+            const size = JSON.parse(selectedValue);
+            onSizeChange(size);
+            setSizeError(null);
+            setImageDimensions(null);
+        }
+    };
 
-  const infoBoxStyle = {
-    background: '#eff6ff',
-    border: '1px solid #bfdbfe',
-    borderRadius: '12px',
-    padding: '12px 16px',
-    fontSize: '13px',
-    color: '#1e40af',
-    marginTop: '12px'
-  };
+    const getSelectedValue = () => {
+        if (selectedSize) {
+            return JSON.stringify({
+                width: selectedSize.width,
+                height: selectedSize.height,
+                label: selectedSize.label,
+                description: selectedSize.description
+            });
+        }
+        return '';
+    };
 
-  const errorBoxStyle = {
-    background: '#fffbeb',
-    border: '1px solid #fde68a',
-    borderRadius: '12px',
-    padding: '12px 16px',
-    fontSize: '13px',
-    color: '#92400e',
-    marginTop: '12px'
-  };
+    const dropdownStyle = {
+        width: '100%',
+        padding: '12px 14px',
+        borderRadius: '10px',
+        border: '1.5px solid #e8e8e8',
+        background: '#fafafa',
+        fontSize: '14px',
+        color: '#111',
+        cursor: 'pointer',
+        outline: 'none',
+        fontFamily: 'inherit'
+    };
 
-  return (
-    <div style={{ marginBottom: '16px' }}>
-      <label style={s.label}>Ad Size *</label>
-      <select
-        value={getSelectedValue()}
-        onChange={handleSizeChange}
-        style={dropdownStyle}
-        onFocus={(e) => (e.target.style.borderColor = '#f97316')}
-        onBlur={(e) => (e.target.style.borderColor = '#e8e8e8')}
-      >
-        <option value="">Select ad size...</option>
-        {availableSizes.map((size, index) => (
-          <option 
-            key={`${size.width}x${size.height}-${index}`} 
-            value={JSON.stringify(size)}
-          >
-            {size.label} — {size.width}×{size.height}px ({size.description})
-          </option>
-        ))}
-      </select>
-      <span style={s.hint}>Select the ad size based on placement location</span>
+    const infoBoxStyle = {
+        background: '#eff6ff',
+        border: '1px solid #bfdbfe',
+        borderRadius: '12px',
+        padding: '12px 16px',
+        fontSize: '13px',
+        color: '#1e40af',
+        marginTop: '12px'
+    };
 
-      {selectedSize && (
-        <div style={infoBoxStyle}>
-          <strong>📐 Selected: {selectedSize.label} ({selectedSize.width}×{selectedSize.height}px)</strong>
-          <br />
-          <span style={{ fontSize: '12px', marginTop: '4px', display: 'block' }}>
-            Best for: {selectedSize.description}
-          </span>
-          {selectedSize.placement && (
-            <span style={{ fontSize: '11px', color: '#6b7280', marginTop: '4px', display: 'block' }}>
-              Recommended placements: {selectedSize.placement}
-            </span>
-          )}
-          {imageDimensions && (
-            <span style={{ display: 'block', marginTop: '8px', color: sizeError ? '#dc2626' : '#22a05a' }}>
-              Uploaded image: {imageDimensions.width}×{imageDimensions.height}px
-              {sizeError && <span style={{ display: 'block', marginTop: '4px' }}>⚠️ {sizeError}</span>}
-            </span>
-          )}
+    const errorBoxStyle = {
+        background: '#fffbeb',
+        border: '1px solid #fde68a',
+        borderRadius: '12px',
+        padding: '12px 16px',
+        fontSize: '13px',
+        color: '#92400e',
+        marginTop: '12px'
+    };
+
+    return (
+        <div style={{ marginBottom: '16px' }}>
+            <label style={s.label}>Ad Size *</label>
+            <select
+                value={getSelectedValue()}
+                onChange={handleSizeChange}
+                style={dropdownStyle}
+                onFocus={(e) => (e.target.style.borderColor = '#f97316')}
+                onBlur={(e) => (e.target.style.borderColor = '#e8e8e8')}
+            >
+                <option value="">Select ad size...</option>
+                {availableSizes.map((size, index) => (
+                    <option
+                        key={`${size.width}x${size.height}-${index}`}
+                        value={JSON.stringify(size)}
+                    >
+                        {size.label} — {size.width}×{size.height}px ({size.description})
+                    </option>
+                ))}
+            </select>
+            <span style={s.hint}>Select the ad size based on placement location</span>
+
+            {selectedSize && (
+                <div style={infoBoxStyle}>
+                    <strong>📐 Selected: {selectedSize.label} ({selectedSize.width}×{selectedSize.height}px)</strong>
+                    <br />
+                    <span style={{ fontSize: '12px', marginTop: '4px', display: 'block' }}>
+                        Best for: {selectedSize.description}
+                    </span>
+                    {selectedSize.placement && (
+                        <span style={{ fontSize: '11px', color: '#6b7280', marginTop: '4px', display: 'block' }}>
+                            Recommended placements: {selectedSize.placement}
+                        </span>
+                    )}
+                    {imageDimensions && (
+                        <span style={{ display: 'block', marginTop: '8px', color: sizeError ? '#dc2626' : '#22a05a' }}>
+                            Uploaded image: {imageDimensions.width}×{imageDimensions.height}px
+                            {sizeError && <span style={{ display: 'block', marginTop: '4px' }}>⚠️ {sizeError}</span>}
+                        </span>
+                    )}
+                </div>
+            )}
+
+            {sizeError && (
+                <div style={errorBoxStyle}>
+                    ⚠️ {sizeError}. Please upload an image with the correct dimensions.
+                </div>
+            )}
         </div>
-      )}
-
-      {sizeError && (
-        <div style={errorBoxStyle}>
-          ⚠️ {sizeError}. Please upload an image with the correct dimensions.
-        </div>
-      )}
-    </div>
-  );
+    );
 }
 
 // ─── Main Component ───────────────────────────────────────────────────────────
@@ -841,6 +844,7 @@ export function AdvertisementForm({ isOpen, onClose, onSubmit, editingAd }) {
     const [showRotation, setShowRotation] = useState(false);
     const [showAdvanced, setShowAdvanced] = useState(false);
     const [showTimerSettings, setShowTimerSettings] = useState(false);
+    const [showSlotSettings, setShowSlotSettings] = useState(false);
     const [selectedSize, setSelectedSize] = useState(editingAd?.adSize || null);
     const [deviceCategory, setDeviceCategory] = useState(editingAd?.deviceCategory || 'both');
 
@@ -861,6 +865,8 @@ export function AdvertisementForm({ isOpen, onClose, onSubmit, editingAd }) {
                 displayDuration: editingAd.displayDuration || null,
                 autoHide: editingAd.autoHide || false,
                 autoClosePopup: editingAd.autoClosePopup !== undefined ? editingAd.autoClosePopup : true,
+                adSlot1Enabled: editingAd.adSlot1Enabled || false,
+                adSlot2Enabled: editingAd.adSlot2Enabled || false,
             });
             setSelectedSize(editingAd.adSize || null);
             setDeviceCategory(editingAd.deviceCategory || 'both');
@@ -878,7 +884,6 @@ export function AdvertisementForm({ isOpen, onClose, onSubmit, editingAd }) {
             const next = { ...prev, [field]: value };
             if (field === 'placementCategory') {
                 next.placementPosition = POSITION_CATEGORIES[value]?.[0] ?? '';
-                // Reset selected size when placement category changes
                 setSelectedSize(null);
             }
             if (field === 'pricingModel') next.costPerUnit = 0;
@@ -892,7 +897,7 @@ export function AdvertisementForm({ isOpen, onClose, onSubmit, editingAd }) {
         if (formData.budget <= 0) return true;
         if (formData.pricingModel !== 'fixed' && formData.costPerUnit <= 0) return true;
         if (formData.type === 'banner' && !selectedSize) return true;
-        
+
         switch (formData.type) {
             case 'banner':
                 return formData.images.length === 0;
@@ -911,7 +916,7 @@ export function AdvertisementForm({ isOpen, onClose, onSubmit, editingAd }) {
         const imageFiles = formData.images
             .filter(img => img.file instanceof File)
             .map(img => img.file);
-        
+
         const submitData = {
             title: formData.title,
             description: formData.description,
@@ -943,8 +948,10 @@ export function AdvertisementForm({ isOpen, onClose, onSubmit, editingAd }) {
             displayDuration: formData.displayDuration,
             autoHide: formData.autoHide,
             autoClosePopup: formData.autoClosePopup,
+            adSlot1Enabled: formData.adSlot1Enabled,
+            adSlot2Enabled: formData.adSlot2Enabled,
         };
-        
+
         onSubmit(submitData, imageFiles, formData.videoFile);
         onClose();
     };
@@ -1458,6 +1465,63 @@ export function AdvertisementForm({ isOpen, onClose, onSubmit, editingAd }) {
                                 {formData.autoHide && formData.displayDuration && (
                                     <div style={{ ...s.infoBox('blue'), marginTop: '8px', fontSize: '12px' }}>
                                         ⏱️ This ad will automatically hide/close after {Math.floor(formData.displayDuration / 60)} minute(s) and {formData.displayDuration % 60} second(s).
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                    </div>
+
+                    {/* NEW: Ad Slot Assignment Section */}
+                    <div style={s.toggleSection}>
+                        <button type="button" style={s.toggleHeader} onClick={() => setShowSlotSettings(v => !v)}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                <span style={{ fontSize: '16px' }}>📌</span>
+                                <span style={{ fontWeight: 700, fontSize: '14px', color: '#222' }}>Ad Slot Assignment</span>
+                                <span style={s.badge(formData.adSlot1Enabled || formData.adSlot2Enabled ? 'green' : 'gray')}>
+                                    {formData.adSlot1Enabled && formData.adSlot2Enabled ? 'Both Slots' :
+                                        formData.adSlot1Enabled ? 'Slot 1 Only' :
+                                            formData.adSlot2Enabled ? 'Slot 2 Only' : 'No Slot'}
+                                </span>
+                            </div>
+                            <span style={{ fontSize: '12px', color: '#bbb', transform: showSlotSettings ? 'rotate(180deg)' : 'rotate(0deg)', display: 'inline-block', transition: 'transform 0.2s' }}>▼</span>
+                        </button>
+                        {showSlotSettings && (
+                            <div style={s.toggleBody}>
+                                <div style={s.checkRow}>
+                                    <input
+                                        type="checkbox"
+                                        id="adSlot1Enabled"
+                                        checked={formData.adSlot1Enabled}
+                                        onChange={e => set('adSlot1Enabled', e.target.checked)}
+                                        style={{ width: '16px', height: '16px', accentColor: '#f97316' }}
+                                    />
+                                    <label htmlFor="adSlot1Enabled" style={{ fontSize: '14px', color: '#333', cursor: 'pointer' }}>
+                                        Show in <strong>Ad Slot 1</strong>
+                                    </label>
+                                </div>
+
+                                <div style={s.checkRow}>
+                                    <input
+                                        type="checkbox"
+                                        id="adSlot2Enabled"
+                                        checked={formData.adSlot2Enabled}
+                                        onChange={e => set('adSlot2Enabled', e.target.checked)}
+                                        style={{ width: '16px', height: '16px', accentColor: '#f97316' }}
+                                    />
+                                    <label htmlFor="adSlot2Enabled" style={{ fontSize: '14px', color: '#333', cursor: 'pointer' }}>
+                                        Show in <strong>Ad Slot 2</strong>
+                                    </label>
+                                </div>
+
+                                {(formData.adSlot1Enabled || formData.adSlot2Enabled) && (
+                                    <div style={{ ...s.infoBox('blue'), marginTop: '12px', fontSize: '12px' }}>
+                                        ✅ This ad will appear in: {formData.adSlot1Enabled ? 'Slot 1' : ''} {formData.adSlot1Enabled && formData.adSlot2Enabled ? '&' : ''} {formData.adSlot2Enabled ? 'Slot 2' : ''}
+                                    </div>
+                                )}
+
+                                {(formData.adSlot1Enabled || formData.adSlot2Enabled) && (
+                                    <div style={{ ...s.infoBox('blue'), marginTop: '12px', fontSize: '12px' }}>
+                                        ✅ This ad will appear in: {formData.adSlot1Enabled ? 'Slot 1' : ''} {formData.adSlot1Enabled && formData.adSlot2Enabled ? '&' : ''} {formData.adSlot2Enabled ? 'Slot 2' : ''}
                                     </div>
                                 )}
                             </div>
