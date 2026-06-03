@@ -52,6 +52,7 @@ const menuItems = [
   { label: 'Inquiry', href: '/admin/inquiry', section: 'MENU' },
   { label: 'Premium Content', href: '/admin/premium', section: 'MENU' },
   { label: 'SEO Management', href: '/admin/seo', section: 'MENU' },
+  { label: 'Events', href: '/admin/events', section: 'MENU' },
   { label: 'Advertisements', href: '/admin/advertisements', section: 'DISCOVERY' },
   { label: 'Comments', href: '/admin/comments', section: 'DISCOVERY' },
   { label: 'Gallery', href: '/admin/gallery', section: 'DISCOVERY' },

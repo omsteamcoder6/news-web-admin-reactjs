@@ -28,6 +28,7 @@ import Header from '../pages/admin/Header';
 import HeaderManager from '../components/admin/HeaderManager';
 import Contacts from '../pages/admin/Contacts'; 
 import Products from '../pages/admin/Products';
+import Events from '../pages/admin/Events';
 
 const AppRoute = () => {
   return (
@@ -180,7 +181,15 @@ const AppRoute = () => {
           <Products />
         </ProtectedRoute>
       } />
+
+      <Route path="/admin/events" element={
+        <ProtectedRoute requiredRole="admin">
+          <Events />
+        </ProtectedRoute>
+      } />
     </Routes>
+
+    
   );
 };
 
