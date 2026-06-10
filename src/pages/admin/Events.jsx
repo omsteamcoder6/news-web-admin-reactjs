@@ -6,6 +6,7 @@ import CategoryManager from "../../components/events/CategoryManager";
 import EnquiriesManager from "../../components/events/EnquiriesManager";
 import BookingsManager from "../../components/events/BookingsManager";
 import PastEventsManager from "../../components/events/PastEventsManager";
+import GalleryManager from "../../components/events/GalleryManager";
 import { useAuthStore } from "../../stores/authStore";
 
 const API_BASE_URL = import.meta.env.VITE_API_URL;
@@ -54,22 +55,22 @@ export default function Events() {
       }
 
       // Fetch enquiries (if you have this endpoint)
-      // const enquiriesRes = await fetch(`${API_BASE_URL}/api/event-enquiries`, {
-      //   headers: getAuthHeaders()
-      // });
-      // const enquiriesData = await enquiriesRes.json();
-      // if (enquiriesData.success) {
-      //   setEnquiries(enquiriesData.data);
-      // }
+      const enquiriesRes = await fetch(`${API_BASE_URL}/event-enquiries`, {
+        headers: getAuthHeaders()
+      });
+      const enquiriesData = await enquiriesRes.json();
+      if (enquiriesData.success) {
+        setEnquiries(enquiriesData.data);
+      }
 
       // Fetch bookings (if you have this endpoint)
-      // const bookingsRes = await fetch(`${API_BASE_URL}/api/event-bookings`, {
-      //   headers: getAuthHeaders()
-      // });
-      // const bookingsData = await bookingsRes.json();
-      // if (bookingsData.success) {
-      //   setBookings(bookingsData.data);
-      // }
+      const bookingsRes = await fetch(`${API_BASE_URL}/event-bookings`, {
+        headers: getAuthHeaders()
+      });
+      const bookingsData = await bookingsRes.json();
+      if (bookingsData.success) {
+        setBookings(bookingsData.data);
+      }
     } catch (error) {
       console.error('Error loading data:', error);
     } finally {
@@ -168,7 +169,8 @@ export default function Events() {
     { id: "categories", name: "Categories", icon: "fa-tags", count: categories.length }, 
     { id: "enquiries", name: "Enquiries", icon: "fa-envelope", count: enquiries.filter(enq => enq.status === "unread").length },
     { id: "bookings", name: "Bookings", icon: "fa-credit-card", count: bookings.filter(bk => bk.status === "Pending").length },
-    { id: "past", name: "Past Events", icon: "fa-archive", count: events.filter(ev => ev.status === "past").length }
+    { id: "past", name: "Past Events", icon: "fa-archive", count: events.filter(ev => ev.status === "past").length },
+    { id: "gallery", name: "Gallery", icon: "fa-images", count: 0 } // Count will be updated by GalleryManager
   ];
 
   if (loading) {
@@ -189,7 +191,7 @@ export default function Events() {
       <div className="space-y-6">
         <div>
           <h1 className="text-4xl font-bold text-slate-900">Events Management</h1>
-          <p className="text-slate-600 mt-2">Manage events, categories, enquiries, and bookings</p>
+          <p className="text-slate-600 mt-2">Manage events, categories, enquiries, bookings, and photo galleries</p>
         </div>
 
         {/* Tab Navigation */}
@@ -330,6 +332,15 @@ export default function Events() {
             enquiries={enquiries}
             bookings={bookings}
             categories={categories}
+          />
+        )}
+
+        {/* Gallery Tab Content */}
+        {activeTab === "gallery" && (
+          <GalleryManager
+            events={events}
+            token={token}
+            onUpdate={loadData}
           />
         )}
       </div>
