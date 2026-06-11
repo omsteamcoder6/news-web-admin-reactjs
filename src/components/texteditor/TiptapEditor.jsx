@@ -11,7 +11,7 @@ import Highlight from '@tiptap/extension-highlight';
 import Typography from '@tiptap/extension-typography';
 import { Table, TableRow, TableCell, TableHeader } from '@tiptap/extension-table';
 import CharacterCount from '@tiptap/extension-character-count';
-import API, { documentAPI, mediaAPI } from '../../lib/mergeapi';
+import API, { documentAPI } from '../../lib/mergeapi';
 
 const TiptapEditor = ({ 
   value = "", 
@@ -31,7 +31,7 @@ const TiptapEditor = ({
   const saveTimeoutRef = useRef(null);
   const editorRef = useRef(null);
 
-  // Tiptap editor configuration - MOVE THIS BEFORE the functions that use it
+  // Tiptap editor configuration
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
@@ -115,7 +115,6 @@ const TiptapEditor = ({
       
       setDocumentTitle(document.title || 'Untitled Document');
       
-      // Use the ref or check if editor exists
       if (editorRef.current && document.content) {
         editorRef.current.commands.setContent(document.content);
       } else if (editor && document.content) {
@@ -224,28 +223,69 @@ const TiptapEditor = ({
     }
   };
 
+  // FIXED: Image upload with absolute URL using env variable
   const handleImageUpload = useCallback(async (file) => {
     return new Promise((resolve, reject) => {
       if (!file.type.startsWith('image/')) {
+        setStatusMessage('❌ Please upload a valid image file');
         reject({ message: 'Please upload a valid image file' });
         return;
       }
 
       setStatusMessage(`📸 Uploading image "${file.name}"...`);
 
-      mediaAPI.uploadFile(file, (progressPercent) => {
-        setStatusMessage(`📸 Uploading image: ${progressPercent}%`);
-      })
-      .then(response => {
-        const imageUrl = mediaAPI.getImageUrl(response.data.url);
-        setStatusMessage(`✅ Image uploaded successfully`);
-        resolve(imageUrl);
-      })
-      .catch(error => {
-        console.error('Image upload failed:', error);
-        setStatusMessage(`❌ Failed to upload image: ${error.response?.data?.message || error.message}`);
-        reject({ message: error.response?.data?.message || 'Upload failed' });
-      });
+      API.media.uploadFile(file)
+        .then(response => {
+          console.log('Image upload response:', response);
+          
+          // Extract image URL from response
+          let imageUrl = null;
+          if (response.data?.data?.url) {
+            imageUrl = response.data.data.url;
+          } else if (response.data?.data?.filePath) {
+            imageUrl = response.data.data.filePath;
+          } else if (response.data?.url) {
+            imageUrl = response.data.url;
+          } else if (response.data?.filePath) {
+            imageUrl = response.data.filePath;
+          } else if (response.data?.data?.path) {
+            imageUrl = response.data.data.path;
+          } else if (response.data?.path) {
+            imageUrl = response.data.path;
+          }
+
+          if (!imageUrl) {
+            throw new Error('No image URL returned from server');
+          }
+
+          // ✅ FIX: Convert relative path to absolute URL using env variable
+          const imageBaseUrl = import.meta.env.VITE_IMAGE_BASE_URL;
+          
+          if (!imageBaseUrl) {
+            console.error('VITE_IMAGE_BASE_URL is not defined in .env file');
+            setStatusMessage('❌ VITE_IMAGE_BASE_URL not configured');
+            reject({ message: 'Image base URL not configured' });
+            return;
+          }
+          
+          // Remove trailing slash from base URL if present
+          const baseUrl = imageBaseUrl.replace(/\/$/, '');
+          
+          // Ensure imageUrl starts with slash
+          const normalizedPath = imageUrl.startsWith('/') ? imageUrl : `/${imageUrl}`;
+          
+          const absoluteUrl = `${baseUrl}${normalizedPath}`;
+          console.log('Original URL:', imageUrl);
+          console.log('Absolute URL:', absoluteUrl);
+          
+          setStatusMessage(`✅ Image "${file.name}" uploaded successfully`);
+          resolve(absoluteUrl);
+        })
+        .catch(error => {
+          console.error('Image upload failed:', error);
+          setStatusMessage(`❌ Failed to upload image: ${error.response?.data?.message || error.message}`);
+          reject({ message: error.response?.data?.message || 'Upload failed' });
+        });
     });
   }, []);
 
@@ -261,21 +301,34 @@ const TiptapEditor = ({
         try {
           const imageUrl = await handleImageUpload(file);
           currentEditor.chain().focus().setImage({ src: imageUrl }).run();
+          setStatusMessage("Image inserted successfully!");
+          setTimeout(() => {
+            if (statusMessage === "Image inserted successfully!") {
+              setStatusMessage("Ready");
+            }
+          }, 2000);
         } catch (error) {
           console.error('Failed to insert image:', error);
+          setStatusMessage(`❌ Failed to insert image: ${error.message}`);
         }
       }
     };
     
     input.click();
-  }, [editor, handleImageUpload]);
+  }, [editor, handleImageUpload, statusMessage]);
 
   const insertTable = useCallback(() => {
     const currentEditor = editorRef.current || editor;
     if (currentEditor) {
       currentEditor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run();
+      setStatusMessage("Table inserted");
+      setTimeout(() => {
+        if (statusMessage === "Table inserted") {
+          setStatusMessage("Ready");
+        }
+      }, 1500);
     }
-  }, [editor]);
+  }, [editor, statusMessage]);
 
   // Load document after editor is ready
   useEffect(() => {
@@ -313,7 +366,7 @@ const TiptapEditor = ({
       window.addEventListener('keydown', handleKeyDown);
       return () => window.removeEventListener('keydown', handleKeyDown);
     }
-  }, [editor, readOnly, saveDocument]);
+  }, [editor, readOnly]);
 
   const getWordCount = useCallback(() => {
     const currentEditor = editorRef.current || editor;
@@ -562,6 +615,12 @@ const TiptapEditor = ({
               const currentEditor = editorRef.current || editor;
               if (url && currentEditor) {
                 currentEditor.chain().focus().setLink({ href: url }).run();
+                setStatusMessage("Link added");
+                setTimeout(() => {
+                  if (statusMessage === "Link added") {
+                    setStatusMessage("Ready");
+                  }
+                }, 1500);
               }
             }}
             active={editor?.isActive('link') || editorRef.current?.isActive('link')}
@@ -581,6 +640,12 @@ const TiptapEditor = ({
             onClick={() => {
               const currentEditor = editorRef.current || editor;
               currentEditor?.chain().focus().toggleCodeBlock().run();
+              setStatusMessage("Code block toggled");
+              setTimeout(() => {
+                if (statusMessage === "Code block toggled") {
+                  setStatusMessage("Ready");
+                }
+              }, 1500);
             }}
             active={editor?.isActive('codeBlock') || editorRef.current?.isActive('codeBlock')}
             title="Code Block"
@@ -592,6 +657,12 @@ const TiptapEditor = ({
             onClick={() => {
               const currentEditor = editorRef.current || editor;
               currentEditor?.chain().focus().toggleBlockquote().run();
+              setStatusMessage("Quote toggled");
+              setTimeout(() => {
+                if (statusMessage === "Quote toggled") {
+                  setStatusMessage("Ready");
+                }
+              }, 1500);
             }}
             active={editor?.isActive('blockquote') || editorRef.current?.isActive('blockquote')}
             title="Quote"
@@ -605,6 +676,12 @@ const TiptapEditor = ({
             onClick={() => {
               const currentEditor = editorRef.current || editor;
               currentEditor?.chain().focus().undo().run();
+              setStatusMessage("Undo");
+              setTimeout(() => {
+                if (statusMessage === "Undo") {
+                  setStatusMessage("Ready");
+                }
+              }, 1000);
             }}
             disabled={!editor?.can().undo() && !editorRef.current?.can().undo()}
             title="Undo (Ctrl+Z)"
@@ -616,6 +693,12 @@ const TiptapEditor = ({
             onClick={() => {
               const currentEditor = editorRef.current || editor;
               currentEditor?.chain().focus().redo().run();
+              setStatusMessage("Redo");
+              setTimeout(() => {
+                if (statusMessage === "Redo") {
+                  setStatusMessage("Ready");
+                }
+              }, 1000);
             }}
             disabled={!editor?.can().redo() && !editorRef.current?.can().redo()}
             title="Redo (Ctrl+Y)"
@@ -632,9 +715,11 @@ const TiptapEditor = ({
 
       {/* Status Bar */}
       <div className="bg-gray-100 border-t border-gray-200 px-4 py-1.5 flex justify-between items-center text-xs">
-        <div className="flex gap-4">
+        <div className="flex gap-4 flex-wrap">
           <div className="flex items-center gap-1">
-            <span className="text-green-600">●</span>
+            <span className={`${statusMessage.includes('✅') ? 'text-green-600' : statusMessage.includes('❌') ? 'text-red-600' : 'text-green-600'}`}>
+              {!statusMessage.includes('✅') && !statusMessage.includes('❌') ? '●' : ''}
+            </span>
             <span className="text-gray-600">{statusMessage}</span>
           </div>
           {lastSaved && (
