@@ -183,7 +183,7 @@ export function Sidebar() {
       <div className="relative z-10 flex flex-col h-full">
         <div className="p-6 mb-2">
           <h1 className="text-2xl font-black text-white tracking-tighter italic">
-            CMS<span className="text-red-600">.</span>
+            READERS<span className="text-red-600">.</span>
           </h1>
         </div>
 

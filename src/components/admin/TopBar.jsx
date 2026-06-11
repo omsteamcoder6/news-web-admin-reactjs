@@ -30,11 +30,11 @@ export function TopBar() {
   // Fetch notifications when user is admin and authenticated
   useEffect(() => {
     if (isAuthenticated && userRole === 'admin' && token) {
-      fetchPendingInquiries()
+      fetchAllNotifications()
       
-      // Set up polling every 30 seconds for new inquiries
+      // Set up polling every 30 seconds for new notifications
       const interval = setInterval(() => {
-        fetchPendingInquiries(true) // silent refresh
+        fetchAllNotifications(true) // silent refresh
       }, 30000)
       
       return () => clearInterval(interval)
@@ -82,7 +82,8 @@ export function TopBar() {
     }
   }
 
-  const fetchPendingInquiries = async (silent = false) => {
+  // Fetch all pending notifications (both advertising inquiries and contact submissions)
+  const fetchAllNotifications = async (silent = false) => {
     if (!token || userRole !== 'admin') return
     
     if (!silent) {
@@ -90,53 +91,83 @@ export function TopBar() {
     }
     
     try {
-      // Fetch only pending inquiries for notifications
-      const response = await fetch(`${API_BASE_URL}/advertising-inquiry?status=pending&limit=50`, {
+      // Fetch pending advertising inquiries
+      const inquiriesResponse = await fetch(`${API_BASE_URL}/advertising-inquiry?status=pending&limit=50`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
       })
       
-      if (response.ok) {
-        const data = await response.json()
+      // Fetch new contact submissions (status = 'new')
+      const contactResponse = await fetch(`${API_BASE_URL}/contact?status=new&limit=50`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
+      
+      let allNotifications = []
+      
+      // Process advertising inquiries
+      if (inquiriesResponse.ok) {
+        const inquiriesData = await inquiriesResponse.json()
+        const pendingInquiries = inquiriesData.data || []
         
-        // Store all pending inquiries as notifications
-        const pendingInquiries = data.data || []
-        
-        // Check against stored notifications to see which are new
-        const storedNotifications = JSON.parse(localStorage.getItem('seen_notifications') || '{}')
-        const lastCheckTime = localStorage.getItem('last_notification_check')
-        const now = new Date().getTime()
-        
-        // Mark notifications as new if they were created after last check
-        const notificationsWithStatus = pendingInquiries.map(inquiry => {
-          const inquiryCreatedAt = new Date(inquiry.createdAt).getTime()
-          const isNew = !storedNotifications[inquiry._id] || 
-                        (lastCheckTime && inquiryCreatedAt > parseInt(lastCheckTime))
-          
-          return {
-            id: inquiry._id,
-            title: 'New Advertising Inquiry',
-            message: `${inquiry.fullName} from ${inquiry.companyName} submitted an inquiry`,
-            time: inquiry.createdAt,
-            read: !isNew,
-            inquiryId: inquiry._id,
-            fullName: inquiry.fullName,
-            companyName: inquiry.companyName,
-            email: inquiry.email,
-            phone: inquiry.phone,
-            status: inquiry.status
-          }
-        })
-        
-        setNotifications(notificationsWithStatus)
-        setUnreadCount(notificationsWithStatus.filter(n => !n.read).length)
-        
-        // Update last check time
-        localStorage.setItem('last_notification_check', now.toString())
+        const inquiryNotifications = pendingInquiries.map(inquiry => ({
+          id: `inquiry_${inquiry._id}`,
+          type: 'inquiry',
+          title: 'New Advertising Inquiry',
+          message: `${inquiry.fullName} from ${inquiry.companyName} submitted an advertising inquiry`,
+          time: inquiry.createdAt,
+          read: false,
+          itemId: inquiry._id,
+          fullName: inquiry.fullName,
+          companyName: inquiry.companyName,
+          email: inquiry.email,
+          phone: inquiry.phone,
+          status: inquiry.status,
+          details: `Company: ${inquiry.companyName}`
+        }))
+        allNotifications.push(...inquiryNotifications)
       }
+      
+      // Process contact submissions
+      if (contactResponse.ok) {
+        const contactData = await contactResponse.json()
+        const newContacts = contactData.data || []
+        
+        const contactNotifications = newContacts.map(contact => ({
+          id: `contact_${contact._id}`,
+          type: 'contact',
+          title: 'New Contact Form Submission',
+          message: `${contact.fullName} sent a message via contact form`,
+          time: contact.createdAt,
+          read: false,
+          itemId: contact._id,
+          fullName: contact.fullName,
+          email: contact.email,
+          phone: contact.phone || 'Not provided',
+          message: contact.message,
+          status: contact.status,
+          details: `Message: ${contact.message.substring(0, 100)}${contact.message.length > 100 ? '...' : ''}`
+        }))
+        allNotifications.push(...contactNotifications)
+      }
+      
+      // Sort by time (newest first)
+      allNotifications.sort((a, b) => new Date(b.time) - new Date(a.time))
+      
+      // Check against stored read notifications
+      const storedReadNotifications = JSON.parse(localStorage.getItem('read_notifications') || '{}')
+      const notificationsWithReadStatus = allNotifications.map(notif => ({
+        ...notif,
+        read: storedReadNotifications[notif.id] === true
+      }))
+      
+      setNotifications(notificationsWithReadStatus)
+      setUnreadCount(notificationsWithReadStatus.filter(n => !n.read).length)
+      
     } catch (error) {
-      console.error('Failed to fetch pending inquiries:', error)
+      console.error('Failed to fetch notifications:', error)
     } finally {
       if (!silent) {
         setIsLoadingNotifications(false)
@@ -144,11 +175,11 @@ export function TopBar() {
     }
   }
 
-  const markAsRead = async (notificationId, inquiryId) => {
+  const markAsRead = async (notificationId, itemId, type) => {
     // Update local storage
-    const storedNotifications = JSON.parse(localStorage.getItem('seen_notifications') || '{}')
-    storedNotifications[inquiryId] = true
-    localStorage.setItem('seen_notifications', JSON.stringify(storedNotifications))
+    const storedReadNotifications = JSON.parse(localStorage.getItem('read_notifications') || '{}')
+    storedReadNotifications[notificationId] = true
+    localStorage.setItem('read_notifications', JSON.stringify(storedReadNotifications))
     
     // Update local state
     setNotifications(prev => 
@@ -160,21 +191,26 @@ export function TopBar() {
   }
 
   const markAllAsRead = () => {
-    const storedNotifications = JSON.parse(localStorage.getItem('seen_notifications') || '{}')
+    const storedReadNotifications = JSON.parse(localStorage.getItem('read_notifications') || '{}')
     notifications.forEach(notif => {
-      storedNotifications[notif.inquiryId] = true
+      storedReadNotifications[notif.id] = true
     })
-    localStorage.setItem('seen_notifications', JSON.stringify(storedNotifications))
+    localStorage.setItem('read_notifications', JSON.stringify(storedReadNotifications))
     
     setNotifications(prev => prev.map(notif => ({ ...notif, read: true })))
     setUnreadCount(0)
   }
 
   const handleNotificationClick = (notification) => {
-    markAsRead(notification.id, notification.inquiryId)
+    markAsRead(notification.id, notification.itemId, notification.type)
     setShowNotifications(false)
-    // Navigate to inquiries page with the specific inquiry
-    window.location.href = `/admin/inquiries/${notification.inquiryId}`
+    
+    // Navigate based on notification type
+    if (notification.type === 'inquiry') {
+      window.location.href = `/admin/inquiries/${notification.itemId}`
+    } else if (notification.type === 'contact') {
+      window.location.href = `/admin/contact/${notification.itemId}`
+    }
   }
 
   const getUserInitials = () => {
@@ -230,6 +266,28 @@ export function TopBar() {
     if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`
     if (diffDays < 7) return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`
     return date.toLocaleDateString()
+  }
+
+  const getNotificationIcon = (type) => {
+    switch(type) {
+      case 'inquiry':
+        return '📋'
+      case 'contact':
+        return '✉️'
+      default:
+        return '🔔'
+    }
+  }
+
+  const getNotificationColor = (type) => {
+    switch(type) {
+      case 'inquiry':
+        return 'bg-blue-50 border-blue-200'
+      case 'contact':
+        return 'bg-orange-50 border-orange-200'
+      default:
+        return 'bg-gray-50'
+    }
   }
 
   // Handle logout with API call
@@ -334,7 +392,7 @@ export function TopBar() {
                 <div>
                   <h3 className="font-semibold text-slate-900">Notifications</h3>
                   <p className="text-xs text-slate-500 mt-0.5">
-                    Advertising inquiries
+                    New inquiries & contact messages
                   </p>
                 </div>
                 {notifications.length > 0 && (
@@ -358,7 +416,7 @@ export function TopBar() {
                     <Bell className="w-10 h-10 text-slate-300 mx-auto mb-2" />
                     <p className="text-sm text-slate-500">No new notifications</p>
                     <p className="text-xs text-slate-400 mt-1">
-                      All inquiries have been reviewed
+                      All inquiries and messages have been reviewed
                     </p>
                   </div>
                 ) : (
@@ -377,9 +435,14 @@ export function TopBar() {
                           }`}></div>
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center justify-between mb-1">
-                              <p className="text-sm font-medium text-slate-900">
-                                {notification.title}
-                              </p>
+                              <div className="flex items-center gap-2">
+                                <span className="text-base">
+                                  {getNotificationIcon(notification.type)}
+                                </span>
+                                <p className="text-sm font-medium text-slate-900">
+                                  {notification.title}
+                                </p>
+                              </div>
                               <span className="text-xs text-slate-400">
                                 {formatTime(notification.time)}
                               </span>
@@ -396,9 +459,20 @@ export function TopBar() {
                                 📞 {notification.phone}
                               </span>
                             </div>
+                            {notification.details && (
+                              <div className="mt-1">
+                                <p className="text-xs text-slate-400 truncate">
+                                  {notification.details}
+                                </p>
+                              </div>
+                            )}
                             {!notification.read && (
                               <div className="mt-2">
-                                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-orange-100 text-orange-800">
+                                <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
+                                  notification.type === 'contact' 
+                                    ? 'bg-orange-100 text-orange-800'
+                                    : 'bg-blue-100 text-blue-800'
+                                }`}>
                                   New
                                 </span>
                               </div>
@@ -411,10 +485,10 @@ export function TopBar() {
                 )}
               </div>
               
-              <div className="p-3 border-t border-slate-200 bg-slate-50">
+              <div className="p-3 border-t border-slate-200 bg-slate-50 flex gap-2">
                 <a
                   href="/admin/inquiries"
-                  className="block text-center text-sm text-orange-600 hover:text-orange-700 font-medium"
+                  className="flex-1 text-center text-sm text-blue-600 hover:text-blue-700 font-medium"
                   onClick={(e) => {
                     e.preventDefault()
                     setShowNotifications(false)
@@ -422,6 +496,17 @@ export function TopBar() {
                   }}
                 >
                   View all inquiries →
+                </a>
+                <a
+                  href="/admin/contact"
+                  className="flex-1 text-center text-sm text-orange-600 hover:text-orange-700 font-medium"
+                  onClick={(e) => {
+                    e.preventDefault()
+                    setShowNotifications(false)
+                    window.location.href = '/admin/contact'
+                  }}
+                >
+                  View all messages →
                 </a>
               </div>
             </div>
