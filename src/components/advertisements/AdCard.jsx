@@ -16,12 +16,11 @@ import {
 } from 'lucide-react';
 
 export function AdCard({ ad, onEdit, onDelete, onApprove, onReject, onPause, onResume }) {
-  // Prices are stored in paise/cents, convert to rupees for display
-  const budgetInRupees = (ad.budget || 0) / 100;
-  const spentInRupees = (ad.spent || 0) / 100;
-  const costPerUnitInRupees = (ad.costPerUnit || 0) / 100;
+  const budgetInRupees = ad.budget || 0;
+  const spentInRupees = ad.spent || 0;
+  const costPerUnitInRupees = ad.costPerUnit || 0;
   
-  const spentPercent = (ad.spent / ad.budget) * 100;
+  const spentPercent = ad.budget > 0 ? (ad.spent / ad.budget) * 100 : 0;
   const ctr = ad.impressions > 0 ? (ad.clicks / ad.impressions) * 100 : 0;
   const isBudgetExhausted = ad.spent >= ad.budget;
 
@@ -47,7 +46,6 @@ export function AdCard({ ad, onEdit, onDelete, onApprove, onReject, onPause, onR
     }
   };
 
-  // Format duration display
   const getDurationDisplay = () => {
     if (ad.isCustomEndDate && ad.endDate) {
       return `Until ${new Date(ad.endDate).toLocaleDateString()}`;
@@ -65,6 +63,7 @@ export function AdCard({ ad, onEdit, onDelete, onApprove, onReject, onPause, onR
     return null;
   };
 
+  // ✅ FIXED: Delete handler with better ID detection
   const handleDelete = () => {
     const adId = ad._id || ad.id;
     if (!adId) {
@@ -73,10 +72,13 @@ export function AdCard({ ad, onEdit, onDelete, onApprove, onReject, onPause, onR
       return;
     }
     
+    console.log('🖱️ Delete button clicked for ad ID:', adId);
+    
     if (onDelete) {
       onDelete(adId);
     } else {
-      console.error('onDelete prop is missing');
+      console.error('onDelete prop is missing in AdCard');
+      alert('Error: Delete function not available');
     }
   };
 
@@ -131,7 +133,6 @@ export function AdCard({ ad, onEdit, onDelete, onApprove, onReject, onPause, onR
           </div>
           <p className="text-sm text-slate-500 mb-2">{ad.description}</p>
           
-          {/* Metrics Grid */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3 text-sm">
             <div className="flex items-center gap-2">
               <Eye className="w-4 h-4 text-blue-500" />
@@ -163,7 +164,6 @@ export function AdCard({ ad, onEdit, onDelete, onApprove, onReject, onPause, onR
             </div>
           </div>
 
-          {/* Budget Progress */}
           <div className="mb-2">
             <div className="flex justify-between text-xs text-slate-500 mb-1">
               <span>Budget Usage</span>
@@ -172,7 +172,6 @@ export function AdCard({ ad, onEdit, onDelete, onApprove, onReject, onPause, onR
             <Progress value={spentPercent} className="h-2" />
           </div>
 
-          {/* Targeting Summary */}
           <div className="flex flex-wrap gap-2 text-xs text-slate-500">
             <span className="px-2 py-1 bg-slate-100 rounded">📍 {ad.placementCategory || ad.placement}</span>
             <span className="px-2 py-1 bg-slate-100 rounded">📱 {ad.targetDevices?.join(', ') || 'all'}</span>
@@ -180,7 +179,6 @@ export function AdCard({ ad, onEdit, onDelete, onApprove, onReject, onPause, onR
             <span className="px-2 py-1 bg-slate-100 rounded">💰 {getPricingLabel()}</span>
           </div>
 
-          {/* Duration Display */}
           {getDurationDisplay() && (
             <div className="flex flex-wrap gap-2 text-xs text-slate-500 mt-2">
               <span className="px-2 py-1 bg-slate-100 rounded flex items-center gap-1">
@@ -189,7 +187,6 @@ export function AdCard({ ad, onEdit, onDelete, onApprove, onReject, onPause, onR
             </div>
           )}
 
-          {/* Ad Size Display */}
           {ad.adSize && ad.adSize.width && ad.adSize.height && (
             <div className="flex flex-wrap gap-2 text-xs text-slate-500 mt-2">
               <span className="px-2 py-1 bg-slate-100 rounded flex items-center gap-1">
@@ -207,7 +204,6 @@ export function AdCard({ ad, onEdit, onDelete, onApprove, onReject, onPause, onR
             </div>
           )}
 
-          {/* Ad Slot Assignment Badges - No warning message shown when no slot assigned */}
           {(ad.adSlot1Enabled || ad.adSlot2Enabled) && (
             <div className="flex flex-wrap gap-2 text-xs text-slate-500 mt-2">
               <span className="px-2 py-1 bg-slate-100 rounded flex items-center gap-1">
@@ -220,7 +216,6 @@ export function AdCard({ ad, onEdit, onDelete, onApprove, onReject, onPause, onR
           )}
         </div>
 
-        {/* Action Buttons */}
         <div className="flex gap-2 ml-4 flex-wrap">
           {ad.status === 'pending_approval' && onApprove && onReject && (
             <>
@@ -249,10 +244,12 @@ export function AdCard({ ad, onEdit, onDelete, onApprove, onReject, onPause, onR
             <Edit2 className="w-4 h-4 text-slate-600" />
           </button>
           
+          {/* ✅ Delete button with proper styling and cursor */}
           <button 
-            className="p-2 hover:bg-red-50 rounded transition" 
+            className="p-2 hover:bg-red-50 rounded transition cursor-pointer" 
             onClick={handleDelete}
             aria-label="Delete advertisement"
+            title="Delete advertisement"
           >
             <Trash2 className="w-4 h-4 text-red-600" />
           </button>

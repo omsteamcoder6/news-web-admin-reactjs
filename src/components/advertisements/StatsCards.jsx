@@ -25,12 +25,12 @@ export function StatsCards({ ads = [], stats = null, loading = false }) {
     );
   }
 
-  // Use stats from API if available, otherwise calculate from ads array
+  // ✅ FIX: Values are already in rupees from backend, NO division needed
   const activeAds = stats?.activeAds ?? ads.filter(a => a.status === 'active').length;
   const pendingAds = stats?.pendingApproval ?? ads.filter(a => a.status === 'pending_approval').length;
   const totalSpent = stats?.totalSpent !== undefined 
-    ? stats.totalSpent / 100 
-    : ads.reduce((sum, a) => sum + (a.spent || 0), 0) / 100;
+    ? stats.totalSpent
+    : ads.reduce((sum, a) => sum + (a.spent || 0), 0);
   
   const avgCtr = stats?.avgCtr !== undefined 
     ? stats.avgCtr.toFixed(1)

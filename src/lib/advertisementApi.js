@@ -20,9 +20,6 @@ const getAuthToken = () => {
 const clearAuthAndRedirect = () => {
   if (typeof window !== 'undefined') {
     localStorage.removeItem('auth-storage');
-    if (window.location.pathname !== '/') {
-      window.location.href = '/';
-    }
   }
 };
 
@@ -89,6 +86,7 @@ const advertisementApi = {
   createAdvertisement: async (adData, videoFile = null, imageFiles = []) => {
     const dataToSend = { ...adData };
 
+    // FIXED: No multiplication - keep as is
     if (dataToSend.budget !== undefined && dataToSend.budget !== null) {
       dataToSend.budget = parseFloat(dataToSend.budget);
     }
@@ -152,6 +150,7 @@ const advertisementApi = {
 
     const dataToSend = { ...adData };
 
+    // FIXED: No multiplication - keep as is
     if (dataToSend.budget !== undefined && dataToSend.budget !== null) {
       dataToSend.budget = parseFloat(dataToSend.budget);
     }
@@ -196,23 +195,54 @@ const advertisementApi = {
     });
   },
 
-  // ✅ FIXED: Delete advertisement - soft delete with proper error handling
   deleteAdvertisement: async (id) => {
     if (!id) {
       throw new Error('Advertisement ID is required');
     }
-    console.log('Deleting advertisement with ID:', id);
-    
-    try {
-      const result = await apiRequest(`/advertisements/${id}`, {
-        method: 'DELETE',
-      });
-      console.log('Delete response:', result);
-      return result;
-    } catch (error) {
-      console.error('Delete API error:', error);
-      throw error;
+
+    // Strip any accidental whitespace/newlines that could corrupt the URL
+    const cleanId = String(id).trim();
+    console.log('🗑️ API: Deleting advertisement with ID:', cleanId);
+
+    const token = getAuthToken();
+
+    if (!token) {
+      console.error('❌ No auth token found');
+      throw new Error('You are not logged in. Please login again.');
     }
+
+    const response = await fetch(`${API_BASE_URL}/advertisements/${cleanId}`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+
+    console.log('📡 Delete response status:', response.status);
+
+    // Parse body (even on error responses the server returns JSON)
+    let data;
+    try {
+      data = await response.json();
+    } catch {
+      throw new Error(`Server returned non-JSON response (status ${response.status})`);
+    }
+
+    if (response.status === 401) {
+      clearAuthAndRedirect();
+      throw new Error('Session expired. Please login again.');
+    }
+
+    if (!response.ok) {
+      // Surface the exact server error message so bugs are visible in the toast
+      const serverMsg = data?.message || data?.error || `Delete failed with status ${response.status}`;
+      console.error('❌ Server rejected delete:', serverMsg, data);
+      throw new Error(serverMsg);
+    }
+
+    console.log('✅ Delete successful:', data);
+    return data;
   },
 
   getAdvertisementStats: async (signal = null) => {
@@ -269,14 +299,15 @@ const advertisementApi = {
     }
   },
 
+  // FIXED: No division by 100 - keep values as is from backend
   formatAdForForm: (ad) => {
     if (!ad) return null;
 
     return {
       ...ad,
       id: ad._id || ad.id,
-      budget: (ad.budget || 0) / 100,
-      costPerUnit: (ad.costPerUnit || 0) / 100,
+      budget: (ad.budget || 0),
+      costPerUnit: (ad.costPerUnit || 0),
       startDate: ad.startDate ? new Date(ad.startDate).toISOString().split('T')[0] : '',
       endDate: ad.endDate ? new Date(ad.endDate).toISOString().split('T')[0] : '',
     };

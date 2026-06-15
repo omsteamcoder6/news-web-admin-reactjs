@@ -70,34 +70,42 @@ export default function AdvertisementsPage() {
     }
   };
 
-  // ✅ FIXED: Soft delete function - properly deletes from database
   const handleDeleteAd = async (adId) => {
-    // Validate ID
     if (!adId) {
       console.error('Invalid ad ID:', adId);
       toast.error('Cannot delete: Invalid advertisement ID');
       return;
     }
-    
-    // Show confirmation dialog
+
     const confirmDelete = window.confirm('Are you sure you want to delete this advertisement? This action cannot be undone.');
     if (!confirmDelete) return;
-    
+
+    // ── Optimistic update: remove from UI immediately ──────────────────────
+    // Save a snapshot so we can roll back if the API call fails
+    const previousAds = ads;
+    setAds(prev => prev.filter(ad => (ad._id || ad.id) !== adId));
+
+    toast.loading('Deleting advertisement...', { id: 'delete-toast' });
+
     try {
-      console.log('Deleting ad with ID:', adId);
+      console.log('🗑️ Deleting ad with ID:', adId);
       const response = await advertisementApi.deleteAdvertisement(adId);
-      
+
       if (response.success) {
-        toast.success('Advertisement deleted successfully');
-        // Refresh the ads list
+        toast.success('Advertisement deleted successfully', { id: 'delete-toast' });
+        // Refresh from server to keep stats & counts in sync
         await fetchAds();
         await fetchStats();
       } else {
-        toast.error(response.message || 'Failed to delete advertisement');
+        // Roll back optimistic removal
+        setAds(previousAds);
+        toast.error(response.message || 'Failed to delete advertisement', { id: 'delete-toast' });
       }
     } catch (error) {
-      console.error('Failed to delete ad:', error);
-      toast.error(error.message || 'Failed to delete advertisement');
+      // Roll back optimistic removal
+      setAds(previousAds);
+      console.error('❌ Failed to delete ad:', error);
+      toast.error(error.message || 'Failed to delete advertisement', { id: 'delete-toast' });
     }
   };
 

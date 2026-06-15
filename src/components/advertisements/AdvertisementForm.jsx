@@ -688,7 +688,7 @@ function NativeAdFields({ brandName, brandLogo, onBrandNameChange, onBrandLogoCh
 
 // ─── Ad Size Selector Component ───────────────────────────────────────────
 
-function AdSizeSelector({ selectedSize, onSizeChange, placementCategory, onDeviceCategoryChange }) {
+function AdSizeSelector({ selectedSize, onSizeChange, placementCategory }) {
     const [sizeError, setSizeError] = useState(null);
     const [imageDimensions, setImageDimensions] = useState(null);
 
@@ -721,14 +721,6 @@ function AdSizeSelector({ selectedSize, onSizeChange, placementCategory, onDevic
     };
 
     const availableSizes = getFilteredSizes();
-    const deviceType = availableSizes[0]?.category === 'desktop' ? 'desktop' : 'mobile';
-
-    // Update device category when placement changes
-    useEffect(() => {
-        if (onDeviceCategoryChange) {
-            onDeviceCategoryChange(deviceType);
-        }
-    }, [deviceType, onDeviceCategoryChange]);
 
     const handleSizeChange = (e) => {
         const selectedValue = e.target.value;
@@ -854,8 +846,9 @@ export function AdvertisementForm({ isOpen, onClose, onSubmit, editingAd }) {
             setFormData({
                 ...defaultForm(),
                 ...editingAd,
-                budget: editingAd.budget ? editingAd.budget / 100 : 0,
-                costPerUnit: editingAd.costPerUnit ? editingAd.costPerUnit / 100 : 0,
+                // FIXED: No division by 100 - store as is
+                budget: editingAd.budget || 0,
+                costPerUnit: editingAd.costPerUnit || 0,
                 images: editingAd.images || [],
                 videoUrl: editingAd.videoUrl || '',
                 brandName: editingAd.brandName || '',
@@ -912,6 +905,7 @@ export function AdvertisementForm({ isOpen, onClose, onSubmit, editingAd }) {
         }
     };
 
+    // FIXED: No multiplication by 100 - send values as is
     const handleSubmit = () => {
         const imageFiles = formData.images
             .filter(img => img.file instanceof File)
@@ -933,8 +927,9 @@ export function AdvertisementForm({ isOpen, onClose, onSubmit, editingAd }) {
             startDate: formData.startDate,
             endDate: formData.endDate,
             pricingModel: formData.pricingModel,
-            budget: Math.round(formData.budget * 100),
-            costPerUnit: Math.round(formData.costPerUnit * 100),
+            // FIXED: No multiplication - send as entered by user
+            budget: formData.budget,
+            costPerUnit: formData.costPerUnit,
             rotationMethod: formData.rotationMethod,
             rotationWeight: formData.rotationWeight,
             isPartOfRotation: formData.isPartOfRotation,
@@ -1165,10 +1160,6 @@ export function AdvertisementForm({ isOpen, onClose, onSubmit, editingAd }) {
                                     set('deviceCategory', deviceCat);
                                 }}
                                 placementCategory={formData.placementCategory}
-                                onDeviceCategoryChange={(deviceType) => {
-                                    setDeviceCategory(deviceType);
-                                    set('deviceCategory', deviceType);
-                                }}
                             />
                         </div>
 
@@ -1512,12 +1503,6 @@ export function AdvertisementForm({ isOpen, onClose, onSubmit, editingAd }) {
                                         Show in <strong>Ad Slot 2</strong>
                                     </label>
                                 </div>
-
-                                {(formData.adSlot1Enabled || formData.adSlot2Enabled) && (
-                                    <div style={{ ...s.infoBox('blue'), marginTop: '12px', fontSize: '12px' }}>
-                                        ✅ This ad will appear in: {formData.adSlot1Enabled ? 'Slot 1' : ''} {formData.adSlot1Enabled && formData.adSlot2Enabled ? '&' : ''} {formData.adSlot2Enabled ? 'Slot 2' : ''}
-                                    </div>
-                                )}
 
                                 {(formData.adSlot1Enabled || formData.adSlot2Enabled) && (
                                     <div style={{ ...s.infoBox('blue'), marginTop: '12px', fontSize: '12px' }}>

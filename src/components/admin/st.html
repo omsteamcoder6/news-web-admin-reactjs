@@ -1,0 +1,679 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+  <title>JobNakuri - Find Your Dream Job</title>
+  <!-- Google Fonts + Font Awesome Icons -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: #f8fafc;
+      color: #0f172a;
+      line-height: 1.5;
+    }
+
+    /* container utility */
+    .container {
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 0 24px;
+    }
+
+    /* ========== HEADER STYLES ========== */
+    .site-header {
+      background: white;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      backdrop-filter: blur(0px);
+    }
+    .header-inner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      padding: 16px 0;
+      gap: 16px;
+    }
+    .logo-area {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .logo-icon {
+      background: linear-gradient(135deg, #2563eb, #1e40af);
+      width: 40px;
+      height: 40px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 22px;
+    }
+    .logo-text h1 {
+      font-size: 1.6rem;
+      font-weight: 700;
+      color: #0f172a;
+      line-height: 1.2;
+    }
+    .logo-text span {
+      font-size: 0.7rem;
+      font-weight: 500;
+      color: #3b82f6;
+      letter-spacing: 0.3px;
+    }
+    .nav-links {
+      display: flex;
+      gap: 28px;
+      align-items: center;
+    }
+    .nav-links a {
+      text-decoration: none;
+      font-weight: 500;
+      color: #1e293b;
+      transition: 0.2s;
+      font-size: 0.95rem;
+    }
+    .nav-links a:hover, .nav-links a.active {
+      color: #2563eb;
+    }
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+    .lang-switch {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: #f1f5f9;
+      padding: 8px 12px;
+      border-radius: 40px;
+      cursor: pointer;
+      font-size: 0.85rem;
+      font-weight: 500;
+    }
+    .lang-switch i {
+      font-size: 0.9rem;
+      color: #2563eb;
+    }
+    .btn-outline {
+      background: transparent;
+      border: 1.5px solid #cbd5e1;
+      padding: 8px 20px;
+      border-radius: 40px;
+      font-weight: 600;
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: 0.2s;
+    }
+    .btn-primary {
+      background: #2563eb;
+      color: white;
+      border: none;
+      padding: 8px 22px;
+      border-radius: 40px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: 0.2s;
+      font-size: 0.85rem;
+    }
+    .btn-primary:hover {
+      background: #1d4ed8;
+      transform: translateY(-1px);
+    }
+    .user-avatar {
+      width: 44px;
+      height: 44px;
+      background: #e2e8f0;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      cursor: pointer;
+      background: linear-gradient(135deg, #3b82f6, #2563eb);
+      color: white;
+    }
+    .mobile-menu-btn {
+      display: none;
+      font-size: 1.8rem;
+      cursor: pointer;
+    }
+    /* stats cards */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 24px;
+      margin: 48px 0;
+    }
+    .stat-card {
+      background: white;
+      border-radius: 24px;
+      padding: 20px 16px;
+      text-align: center;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.02);
+      border: 1px solid #eef2ff;
+      transition: 0.2s;
+    }
+    .stat-number {
+      font-size: 2.5rem;
+      font-weight: 800;
+      color: #1e40af;
+    }
+    .stat-label {
+      font-size: 0.9rem;
+      color: #475569;
+      margin-top: 8px;
+    }
+    /* Hero + search */
+    .hero {
+      background: linear-gradient(135deg, #eff6ff 0%, #ffffff 100%);
+      border-radius: 32px;
+      padding: 48px 32px;
+      margin: 24px 0 32px;
+      text-align: center;
+    }
+    .hero h2 {
+      font-size: 2.5rem;
+      font-weight: 800;
+      background: linear-gradient(to right, #1e293b, #2563eb);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+    }
+    .search-box {
+      max-width: 780px;
+      margin: 32px auto 0;
+      background: white;
+      border-radius: 60px;
+      display: flex;
+      flex-wrap: wrap;
+      box-shadow: 0 12px 30px rgba(0,0,0,0.08);
+      border: 1px solid #e2e8f0;
+    }
+    .search-input {
+      flex: 2;
+      padding: 16px 24px;
+      border: none;
+      background: transparent;
+      font-size: 1rem;
+      outline: none;
+    }
+    .location-input {
+      flex: 1;
+      padding: 16px 20px;
+      border-left: 1px solid #e2e8f0;
+      border-right: 1px solid #e2e8f0;
+      border-top: none;
+      border-bottom: none;
+      outline: none;
+    }
+    .hero-btn {
+      background: #2563eb;
+      border: none;
+      padding: 0 32px;
+      border-radius: 60px;
+      color: white;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    /* section titles */
+    .section-title {
+      font-size: 1.8rem;
+      font-weight: 700;
+      margin: 48px 0 16px 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      flex-wrap: wrap;
+    }
+    .view-link {
+      color: #2563eb;
+      font-weight: 500;
+      text-decoration: none;
+    }
+    /* job cards grid */
+    .job-grid, .company-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 24px;
+      margin-bottom: 40px;
+    }
+    .job-card {
+      background: white;
+      border-radius: 20px;
+      padding: 20px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.04);
+      transition: all 0.2s;
+      border: 1px solid #edf2f7;
+    }
+    .job-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 20px 25px -12px rgba(0,0,0,0.1);
+    }
+    .company-name {
+      font-weight: 700;
+      color: #2563eb;
+      font-size: 0.85rem;
+    }
+    .job-title {
+      font-size: 1.2rem;
+      font-weight: 700;
+      margin: 8px 0;
+    }
+    .job-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin: 12px 0;
+      font-size: 0.8rem;
+      color: #475569;
+    }
+    .salary {
+      font-weight: 700;
+      color: #0f172a;
+    }
+    .job-tag {
+      background: #eef2ff;
+      padding: 4px 8px;
+      border-radius: 20px;
+      font-size: 0.7rem;
+    }
+    .company-card {
+      background: white;
+      border-radius: 20px;
+      padding: 20px;
+      text-align: center;
+      border: 1px solid #edf2f7;
+    }
+    .company-logo {
+      width: 70px;
+      height: 70px;
+      background: #eef2ff;
+      border-radius: 18px;
+      margin: 0 auto 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 32px;
+      color: #2563eb;
+    }
+    /* categories */
+    .categories-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+      gap: 20px;
+      margin: 32px 0;
+    }
+    .category-card {
+      background: white;
+      border-radius: 20px;
+      padding: 20px 12px;
+      text-align: center;
+      transition: 0.2s;
+      cursor: pointer;
+      border: 1px solid #eef2ff;
+    }
+    .category-icon {
+      font-size: 2.3rem;
+      margin-bottom: 12px;
+    }
+    /* footer */
+    .footer {
+      background: #0f172a;
+      color: #cbd5e1;
+      padding: 48px 0 24px;
+      margin-top: 64px;
+    }
+    .footer-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 32px;
+    }
+    .footer-bottom {
+      text-align: center;
+      margin-top: 40px;
+      padding-top: 20px;
+      border-top: 1px solid #334155;
+    }
+    /* responsive */
+    @media (max-width: 900px) {
+      .nav-links, .header-actions .btn-outline, .header-actions .btn-primary {
+        display: none;
+      }
+      .mobile-menu-btn {
+        display: block;
+      }
+      .header-actions .lang-switch {
+        display: flex;
+      }
+      .search-box {
+        flex-direction: column;
+        border-radius: 32px;
+        background: white;
+      }
+      .search-input, .location-input {
+        border: 1px solid #e2e8f0;
+        border-radius: 60px;
+        margin: 6px 0;
+      }
+      .hero-btn {
+        padding: 12px;
+        border-radius: 60px;
+        margin-top: 8px;
+      }
+      .hero h2 {
+        font-size: 1.8rem;
+      }
+    }
+    @media (max-width: 540px) {
+      .container {
+        padding: 0 16px;
+      }
+      .stats-grid {
+        grid-template-columns: 1fr 1fr;
+      }
+    }
+    .badge-count {
+      background: #ef4444;
+      color: white;
+      border-radius: 30px;
+      padding: 2px 8px;
+      font-size: 0.7rem;
+      margin-left: 6px;
+    }
+    button {
+      background: none;
+      border: none;
+    }
+  </style>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="container">
+    <div class="header-inner">
+      <!-- Logo area -->
+      <div class="logo-area">
+        <div class="logo-icon"><i class="fas fa-briefcase"></i></div>
+        <div class="logo-text">
+          <h1>JobNakuri</h1>
+          <span>career gateway</span>
+        </div>
+      </div>
+
+      <!-- Desktop Navigation -->
+      <div class="nav-links">
+        <a href="#" class="active">Home</a>
+        <a href="#">Find Jobs</a>
+        <a href="#">Companies</a>
+        <a href="#">Blog</a>
+        <a href="#">Contact</a>
+      </div>
+
+      <!-- Right side actions (Guest mode by default, we will show both guest & logged simulation but using guest view first) -->
+      <div class="header-actions">
+        <div class="lang-switch">
+          <i class="fas fa-globe"></i> English <i class="fas fa-chevron-down"></i>
+        </div>
+        <button class="btn-outline" id="loginBtn">Login</button>
+        <button class="btn-primary" id="signupBtn">Sign Up</button>
+        <!-- Post a Job CTA for employers -->
+        <button class="btn-primary" style="background:#10b981;" id="postJobBtn">📢 Post a Job</button>
+        <div class="user-avatar" style="display: none;" id="userAvatar">JD</div>
+      </div>
+      <div class="mobile-menu-btn">
+        <i class="fas fa-bars"></i>
+      </div>
+    </div>
+  </div>
+</header>
+
+<main class="container">
+  <!-- HERO SECTION with search -->
+  <div class="hero">
+    <h2>Find Your <span style="color:#2563eb;">Dream Job</span> Today</h2>
+    <p style="margin-top: 12px; color:#334155;">Thousands of opportunities across India • Multi-language support</p>
+    <div class="search-box">
+      <input type="text" class="search-input" placeholder="Job title, skills, or company">
+      <input type="text" class="location-input" placeholder="📍 Location (e.g. Mumbai)">
+      <button class="hero-btn"><i class="fas fa-search"></i> Search</button>
+    </div>
+  </div>
+
+  <!-- STATISTICS SECTION - dynamic counts via JS but static showcase + fetch simulation -->
+  <div class="stats-grid" id="statsContainer">
+    <div class="stat-card"><div class="stat-number" id="totalJobs">1,284</div><div class="stat-label">Total Jobs</div></div>
+    <div class="stat-card"><div class="stat-number" id="totalCompanies">342</div><div class="stat-label">Active Companies</div></div>
+    <div class="stat-card"><div class="stat-number" id="totalUsers">8.9k</div><div class="stat-label">Job Seekers</div></div>
+    <div class="stat-card"><div class="stat-number" id="newToday">+48</div><div class="stat-label">New Jobs Today</div></div>
+  </div>
+
+  <!-- FEATURED JOBS SECTION -->
+  <div class="section-title">
+    <span>✨ Featured Jobs</span>
+    <a href="#" class="view-link">View all <i class="fas fa-arrow-right"></i></a>
+  </div>
+  <div class="job-grid" id="featuredJobsGrid"></div>
+
+  <!-- TOP COMPANIES SECTION -->
+  <div class="section-title">
+    <span>🏢 Top Companies</span>
+    <a href="#" class="view-link">Explore companies</a>
+  </div>
+  <div class="company-grid" id="topCompaniesGrid"></div>
+
+  <!-- JOB CATEGORIES -->
+  <div class="section-title">
+    <span>📂 Browse by Category</span>
+  </div>
+  <div class="categories-grid" id="categoriesGrid"></div>
+
+  <!-- RECENT JOBS SECTION -->
+  <div class="section-title">
+    <span>🔥 Recent Openings</span>
+    <a href="#" class="view-link">See more jobs</a>
+  </div>
+  <div class="job-grid" id="recentJobsGrid"></div>
+</main>
+
+<!-- FOOTER -->
+<footer class="footer">
+  <div class="container">
+    <div class="footer-grid">
+      <div><h3 style="color:white;">JobNakuri</h3><p style="margin-top: 12px;">India's fastest growing job portal.</p><div class="lang-switch" style="background:#1e293b; width: fit-content; margin-top: 16px;"><i class="fas fa-language"></i> English / हिंदी / मराठी</div></div>
+      <div><h4 style="color:white;">Quick Links</h4><ul style="list-style: none; margin-top: 12px;"><li>About Us</li><li>Contact Support</li><li>Privacy Policy</li><li>Terms of Use</li></ul></div>
+      <div><h4 style="color:white;">For Employers</h4><ul style="list-style: none; margin-top: 12px;"><li>Post a Job</li><li>Access Resume DB</li><li>Pricing</li></ul></div>
+      <div><h4 style="color:white;">Connect</h4><i class="fab fa-linkedin" style="font-size:24px; margin-right: 12px;"></i><i class="fab fa-twitter" style="font-size:24px;"></i></div>
+    </div>
+    <div class="footer-bottom">© 2026 JobNakuri — Empowering Careers Across Languages</div>
+  </div>
+</footer>
+
+<script>
+  // ----- MOCK DATA (simulates backend APIs) - featured jobs, top companies, categories, recent jobs
+  const featuredJobsData = [
+    { id: 1, title: "Senior Frontend Engineer", company: "Tech Mahindra", location: "Pune", salary: "14-20 LPA", type: "Full-time", logo: "🚀", posted: "2 days ago", experience: "3-5 yrs" },
+    { id: 2, title: "React Native Developer", company: "Innovative Labs", location: "Bangalore", salary: "10-15 LPA", type: "Remote", logo: "📱", posted: "1 day ago", experience: "2-4 yrs" },
+    { id: 3, title: "DevOps Engineer", company: "CloudScale", location: "Hyderabad", salary: "16-24 LPA", type: "Hybrid", logo: "☁️", posted: "5 days ago", experience: "4-7 yrs" },
+    { id: 4, title: "Full Stack Java", company: "Infosys", location: "Chennai", salary: "12-18 LPA", type: "Full-time", logo: "☕", posted: "Just now", experience: "3+ yrs" }
+  ];
+  const topCompanies = [
+    { name: "Google India", jobs: 124, rating: 4.8, logo: "🔍", location: "Bengaluru" },
+    { name: "Microsoft", jobs: 89, rating: 4.7, logo: "💻", location: "Hyderabad" },
+    { name: "Amazon", jobs: 203, rating: 4.5, logo: "📦", location: "Multiple" },
+    { name: "Flipkart", jobs: 67, rating: 4.4, logo: "🛒", location: "Bengaluru" }
+  ];
+  const categories = [
+    { name: "Technology", icon: "💻", count: 540 },
+    { name: "Finance", icon: "💰", count: 210 },
+    { name: "Marketing", icon: "📢", count: 189 },
+    { name: "Healthcare", icon: "🏥", count: 132 },
+    { name: "Education", icon: "📚", count: 97 },
+    { name: "Retail", icon: "🛍️", count: 144 }
+  ];
+  const recentJobs = [
+    { id: 5, title: "UI/UX Designer", company: "DesignCraft", location: "Mumbai", salary: "8-12 LPA", type: "Full-time", posted: "3 hours ago", logo: "🎨" },
+    { id: 6, title: "Data Scientist", company: "AnalyticAI", location: "Remote", salary: "18-26 LPA", type: "Remote", posted: "Yesterday", logo: "📊" },
+    { id: 7, title: "Backend Engineer (Node.js)", company: "FastAPI Tech", location: "Delhi NCR", salary: "11-16 LPA", type: "Onsite", posted: "2 days ago", logo: "⚙️" },
+    { id: 8, title: "HR Recruiter", company: "TalentHive", location: "Pune", salary: "5-7 LPA", type: "Full-time", posted: "5 days ago", logo: "👥" }
+  ];
+
+  function renderFeaturedJobs() {
+    const container = document.getElementById('featuredJobsGrid');
+    container.innerHTML = featuredJobsData.map(job => `
+      <div class="job-card">
+        <div class="company-name">${job.company} <span style="float:right;">${job.logo}</span></div>
+        <div class="job-title">${job.title}</div>
+        <div class="job-meta"><span><i class="fas fa-map-marker-alt"></i> ${job.location}</span><span><i class="fas fa-clock"></i> ${job.type}</span></div>
+        <div class="salary">💰 ${job.salary}</div>
+        <div class="job-meta"><span class="job-tag">📅 ${job.posted}</span><span class="job-tag">⭐ ${job.experience}</span></div>
+        <button class="btn-primary" style="margin-top:12px; width:100%;">Apply Now</button>
+      </div>
+    `).join('');
+  }
+
+  function renderTopCompanies() {
+    const container = document.getElementById('topCompaniesGrid');
+    container.innerHTML = topCompanies.map(c => `
+      <div class="company-card">
+        <div class="company-logo">${c.logo}</div>
+        <h3>${c.name}</h3>
+        <div><i class="fas fa-briefcase"></i> ${c.jobs} open jobs</div>
+        <div><i class="fas fa-star" style="color:#f59e0b;"></i> ${c.rating} ★</div>
+        <div><i class="fas fa-location-dot"></i> ${c.location}</div>
+        <button class="btn-outline" style="margin-top:12px;">View openings</button>
+      </div>
+    `).join('');
+  }
+
+  function renderCategories() {
+    const container = document.getElementById('categoriesGrid');
+    container.innerHTML = categories.map(cat => `
+      <div class="category-card">
+        <div class="category-icon">${cat.icon}</div>
+        <h4>${cat.name}</h4>
+        <p style="font-size:0.8rem; color:#4b5563">${cat.count} jobs</p>
+      </div>
+    `).join('');
+  }
+
+  function renderRecentJobs() {
+    const container = document.getElementById('recentJobsGrid');
+    container.innerHTML = recentJobs.map(job => `
+      <div class="job-card">
+        <div class="company-name">${job.company} <span style="float:right;">${job.logo}</span></div>
+        <div class="job-title">${job.title}</div>
+        <div class="job-meta"><span><i class="fas fa-map-marker-alt"></i> ${job.location}</span><span><i class="fas fa-bolt"></i> ${job.type}</span></div>
+        <div class="salary">💵 ${job.salary}</div>
+        <div class="job-meta"><span class="job-tag"><i class="far fa-clock"></i> ${job.posted}</span></div>
+        <button class="btn-primary" style="margin-top:12px; background:#3b82f6;">Quick Apply</button>
+      </div>
+    `).join('');
+  }
+
+  // simulate dynamic stats changes (like API calling)
+  function updateStats() {
+    // just for showcase, we can keep values as realistic but make them interactive if needed.
+    // Also to demonstrate that "total jobs" can be updated from backend simulation
+    document.getElementById('totalJobs').innerText = "1,284";
+    document.getElementById('totalCompanies').innerText = "342";
+    document.getElementById('totalUsers').innerText = "8.9k";
+    document.getElementById('newToday').innerText = "+48";
+  }
+
+  // logged-in simulation preview (optional): toggle header between guest & logged in on login click (demo)
+  let isLoggedIn = false;
+  const loginBtn = document.getElementById('loginBtn');
+  const signupBtn = document.getElementById('signupBtn');
+  const postJobBtn = document.getElementById('postJobBtn');
+  const userAvatarDiv = document.getElementById('userAvatar');
+
+  function updateHeaderUI() {
+    if (isLoggedIn) {
+      loginBtn.style.display = 'none';
+      signupBtn.style.display = 'none';
+      postJobBtn.style.display = 'none';
+      userAvatarDiv.style.display = 'flex';
+    } else {
+      loginBtn.style.display = 'block';
+      signupBtn.style.display = 'block';
+      postJobBtn.style.display = 'block';
+      userAvatarDiv.style.display = 'none';
+    }
+  }
+  loginBtn.addEventListener('click', () => {
+    isLoggedIn = true;
+    updateHeaderUI();
+    alert('Demo: Logged in as John Doe. You can now save jobs & see dashboard.');
+  });
+  signupBtn.addEventListener('click', () => {
+    alert('Demo signup flow: user registration would open.');
+  });
+  postJobBtn.addEventListener('click', () => {
+    alert('Employer: Post a new job listing (premium feature)');
+  });
+  userAvatarDiv.addEventListener('click', () => {
+    alert('User Dashboard: My applications, saved jobs, profile settings.');
+  });
+
+  // Language switcher demo behavior
+  const langSwitcher = document.querySelector('.lang-switch');
+  if (langSwitcher) {
+    langSwitcher.addEventListener('click', () => {
+      alert('🌐 Multi-language support: English | हिंदी | मराठी | বাংলা — coming with i18n integration.');
+    });
+  }
+
+  // search demo
+  const searchBtn = document.querySelector('.hero-btn');
+  searchBtn.addEventListener('click', () => {
+    alert('🔍 Advanced search filters: job title, location & categories (full implementation via backend)');
+  });
+
+  // mobile menu (demo action)
+  const mobileIcon = document.querySelector('.mobile-menu-btn');
+  if(mobileIcon) {
+    mobileIcon.addEventListener('click', () => {
+      alert('📱 Mobile menu: Home | Jobs | Companies | Blog | Language | Login/Register');
+    });
+  }
+
+  // view all links and job apply buttons: demo toasts
+  document.querySelectorAll('.view-link').forEach(link => {
+    link.addEventListener('click', (e) => {
+      e.preventDefault();
+      alert('Full listing page with pagination and filters (coming soon)');
+    });
+  });
+  document.addEventListener('click', (e) => {
+    if(e.target.innerText === 'Apply Now' || e.target.innerText === 'Quick Apply') {
+      alert('Application process: You will be asked to upload resume & login to apply.');
+    }
+    if(e.target.innerText === 'View openings') {
+      alert('Company page with all current openings.');
+    }
+  });
+  
+  // Initial render all modules
+  renderFeaturedJobs();
+  renderTopCompanies();
+  renderCategories();
+  renderRecentJobs();
+  updateStats();
+</script>
+</body>
+</html>
