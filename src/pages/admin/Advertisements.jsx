@@ -1,4 +1,4 @@
-// Advertisements.jsx (Page Component with API Integration)
+// Advertisements.jsx (Page Component with direct API integration)
 import { useState, useEffect, useCallback } from 'react';
 import { MainLayout } from "../../layout/MainLayout";
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/Card';
@@ -9,8 +9,10 @@ import { AdCard } from '../../components/advertisements/AdCard';
 import { AdvertisementForm } from '../../components/advertisements/AdvertisementForm';
 import { StatsCards } from '../../components/advertisements/StatsCards';
 import { RejectDialog } from '../../components/advertisements/RejectDialog';
-import advertisementApi from '../../lib/advertisementApi';
 import { toast } from 'sonner';
+import { useAuthStore } from '../../stores/authStore';
+
+const API_BASE_URL = import.meta.env.VITE_API_URL;
 
 export default function AdvertisementsPage() {
   const [ads, setAds] = useState([]);
@@ -21,12 +23,43 @@ export default function AdvertisementsPage() {
   const [rejectAdId, setRejectAdId] = useState(null);
   const [stats, setStats] = useState(null);
   const [sizeFilter, setSizeFilter] = useState('all');
+  
+  const { token, isAuthenticated } = useAuthStore();
+
+  // Helper function to get auth headers
+  const getAuthHeaders = () => {
+    if (!token) {
+      toast.error('Please login to continue');
+      return null;
+    }
+    return {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    };
+  };
 
   const fetchAds = useCallback(async () => {
+    if (!token) {
+      setLoading(false);
+      return;
+    }
+    
     setLoading(true);
     try {
-      const response = await advertisementApi.getAllAdvertisements();
-      const adsData = response.data || response;
+      const headers = getAuthHeaders();
+      if (!headers) return;
+      
+      const response = await fetch(`${API_BASE_URL}/advertisements`, {
+        method: 'GET',
+        headers
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch advertisements');
+      }
+      
+      const data = await response.json();
+      const adsData = data.data || data;
       setAds(adsData);
     } catch (error) {
       console.error('Failed to fetch ads:', error);
@@ -34,36 +67,103 @@ export default function AdvertisementsPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [token]);
 
   const fetchStats = useCallback(async () => {
+    if (!token) return;
+    
     try {
-      const response = await advertisementApi.getAdvertisementStats();
-      setStats(response.data || response);
+      const headers = getAuthHeaders();
+      if (!headers) return;
+      
+      const response = await fetch(`${API_BASE_URL}/advertisements/stats`, {
+        method: 'GET',
+        headers
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch stats');
+      }
+      
+      const data = await response.json();
+      setStats(data.data || data);
     } catch (error) {
       console.error('Failed to fetch stats:', error);
     }
-  }, []);
+  }, [token]);
 
   useEffect(() => {
-    fetchAds();
-    fetchStats();
-  }, [fetchAds, fetchStats]);
+    if (isAuthenticated && token) {
+      fetchAds();
+      fetchStats();
+    } else {
+      setLoading(false);
+    }
+  }, [fetchAds, fetchStats, isAuthenticated, token]);
 
   const saveAd = async (formData, imageFiles, videoFile) => {
+    if (!token) {
+      toast.error('Please login to continue');
+      return;
+    }
+    
     try {
-      if (editingAd) {
-        await advertisementApi.updateAdvertisement(editingAd.id || editingAd._id, formData);
-        toast.success('Advertisement updated successfully');
-        await fetchAds();
-      } else {
-        await advertisementApi.createAdvertisement(formData, videoFile, imageFiles);
-        toast.success('Advertisement created successfully');
-        await fetchAds();
+      const formDataToSend = new FormData();
+      
+      // Append form data
+      Object.keys(formData).forEach(key => {
+        if (formData[key] !== null && formData[key] !== undefined) {
+          if (typeof formData[key] === 'object') {
+            formDataToSend.append(key, JSON.stringify(formData[key]));
+          } else {
+            formDataToSend.append(key, formData[key]);
+          }
+        }
+      });
+      
+      // Append images
+      if (imageFiles && imageFiles.length > 0) {
+        imageFiles.forEach(file => {
+          formDataToSend.append('images', file);
+        });
       }
-      setShowCreateDialog(false);
-      setEditingAd(null);
-      fetchStats();
+      
+      // Append video
+      if (videoFile) {
+        formDataToSend.append('video', videoFile);
+      }
+      
+      const headers = {
+        'Authorization': `Bearer ${token}`
+      };
+      // Don't set Content-Type for FormData, browser will set it with boundary
+      
+      const url = editingAd 
+        ? `${API_BASE_URL}/advertisements/${editingAd.id || editingAd._id}`
+        : `${API_BASE_URL}/advertisements`;
+      
+      const response = await fetch(url, {
+        method: editingAd ? 'PUT' : 'POST',
+        headers,
+        body: formDataToSend
+      });
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to save advertisement');
+      }
+      
+      const result = await response.json();
+      
+      if (result.success) {
+        toast.success(editingAd ? 'Advertisement updated successfully' : 'Advertisement created successfully');
+        await fetchAds();
+        await fetchStats();
+        setShowCreateDialog(false);
+        setEditingAd(null);
+      } else {
+        toast.error(result.message || 'Failed to save advertisement');
+      }
     } catch (error) {
       console.error('Failed to save ad:', error);
       toast.error(error.message || 'Failed to save advertisement');
@@ -77,32 +177,40 @@ export default function AdvertisementsPage() {
       return;
     }
 
+    if (!token) {
+      toast.error('Please login to continue');
+      return;
+    }
+
     const confirmDelete = window.confirm('Are you sure you want to delete this advertisement? This action cannot be undone.');
     if (!confirmDelete) return;
 
-    // ── Optimistic update: remove from UI immediately ──────────────────────
-    // Save a snapshot so we can roll back if the API call fails
+    // Optimistic update: remove from UI immediately
     const previousAds = ads;
     setAds(prev => prev.filter(ad => (ad._id || ad.id) !== adId));
 
     toast.loading('Deleting advertisement...', { id: 'delete-toast' });
 
     try {
-      console.log('🗑️ Deleting ad with ID:', adId);
-      const response = await advertisementApi.deleteAdvertisement(adId);
-
-      if (response.success) {
+      const headers = getAuthHeaders();
+      if (!headers) throw new Error('Authentication required');
+      
+      const response = await fetch(`${API_BASE_URL}/advertisements/${adId}`, {
+        method: 'DELETE',
+        headers
+      });
+      
+      const result = await response.json();
+      
+      if (result.success) {
         toast.success('Advertisement deleted successfully', { id: 'delete-toast' });
-        // Refresh from server to keep stats & counts in sync
         await fetchAds();
         await fetchStats();
       } else {
-        // Roll back optimistic removal
         setAds(previousAds);
-        toast.error(response.message || 'Failed to delete advertisement', { id: 'delete-toast' });
+        toast.error(result.message || 'Failed to delete advertisement', { id: 'delete-toast' });
       }
     } catch (error) {
-      // Roll back optimistic removal
       setAds(previousAds);
       console.error('❌ Failed to delete ad:', error);
       toast.error(error.message || 'Failed to delete advertisement', { id: 'delete-toast' });
@@ -110,14 +218,28 @@ export default function AdvertisementsPage() {
   };
 
   const approveAd = async (id) => {
+    if (!token) {
+      toast.error('Please login to continue');
+      return;
+    }
+    
     try {
-      const response = await advertisementApi.approveAdvertisement(id);
-      if (response.success) {
+      const headers = getAuthHeaders();
+      if (!headers) throw new Error('Authentication required');
+      
+      const response = await fetch(`${API_BASE_URL}/advertisements/${id}/approve`, {
+        method: 'PATCH',
+        headers
+      });
+      
+      const result = await response.json();
+      
+      if (result.success) {
         toast.success('Advertisement approved successfully');
         await fetchAds();
         await fetchStats();
       } else {
-        toast.error(response.message || 'Failed to approve advertisement');
+        toast.error(result.message || 'Failed to approve advertisement');
       }
     } catch (error) {
       console.error('Failed to approve ad:', error);
@@ -126,15 +248,32 @@ export default function AdvertisementsPage() {
   };
 
   const rejectAd = async (id, reason) => {
+    if (!token) {
+      toast.error('Please login to continue');
+      return;
+    }
+    
     try {
-      const response = await advertisementApi.rejectAdvertisement(id, reason);
-      if (response.success) {
+      const headers = {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      };
+      
+      const response = await fetch(`${API_BASE_URL}/advertisements/${id}/reject`, {
+        method: 'PATCH',
+        headers,
+        body: JSON.stringify({ reason })
+      });
+      
+      const result = await response.json();
+      
+      if (result.success) {
         toast.success('Advertisement rejected');
         await fetchAds();
         await fetchStats();
         setRejectAdId(null);
       } else {
-        toast.error(response.message || 'Failed to reject advertisement');
+        toast.error(result.message || 'Failed to reject advertisement');
       }
     } catch (error) {
       console.error('Failed to reject ad:', error);
@@ -143,14 +282,28 @@ export default function AdvertisementsPage() {
   };
 
   const pauseAd = async (id) => {
+    if (!token) {
+      toast.error('Please login to continue');
+      return;
+    }
+    
     try {
-      const response = await advertisementApi.pauseAdvertisement(id);
-      if (response.success) {
+      const headers = getAuthHeaders();
+      if (!headers) throw new Error('Authentication required');
+      
+      const response = await fetch(`${API_BASE_URL}/advertisements/${id}/pause`, {
+        method: 'PATCH',
+        headers
+      });
+      
+      const result = await response.json();
+      
+      if (result.success) {
         toast.success('Advertisement paused');
         await fetchAds();
         await fetchStats();
       } else {
-        toast.error(response.message || 'Failed to pause advertisement');
+        toast.error(result.message || 'Failed to pause advertisement');
       }
     } catch (error) {
       console.error('Failed to pause ad:', error);
@@ -159,14 +312,28 @@ export default function AdvertisementsPage() {
   };
 
   const resumeAd = async (id) => {
+    if (!token) {
+      toast.error('Please login to continue');
+      return;
+    }
+    
     try {
-      const response = await advertisementApi.resumeAdvertisement(id);
-      if (response.success) {
+      const headers = getAuthHeaders();
+      if (!headers) throw new Error('Authentication required');
+      
+      const response = await fetch(`${API_BASE_URL}/advertisements/${id}/resume`, {
+        method: 'PATCH',
+        headers
+      });
+      
+      const result = await response.json();
+      
+      if (result.success) {
         toast.success('Advertisement resumed successfully');
         await fetchAds();
         await fetchStats();
       } else {
-        toast.error(response.message || 'Failed to resume advertisement');
+        toast.error(result.message || 'Failed to resume advertisement');
       }
     } catch (error) {
       console.error('Failed to resume ad:', error);
@@ -190,6 +357,16 @@ export default function AdvertisementsPage() {
     })();
     return tabMatch && filterBySize(ad);
   });
+
+  if (!isAuthenticated) {
+    return (
+      <MainLayout>
+        <div className="flex items-center justify-center min-h-[400px]">
+          <p className="text-slate-600">Please login to access advertisements</p>
+        </div>
+      </MainLayout>
+    );
+  }
 
   if (loading && ads.length === 0) {
     return (
@@ -283,8 +460,7 @@ export default function AdvertisementsPage() {
                         id: ad._id || ad.id,
                       }}
                       onEdit={(ad) => { 
-                        const formattedAd = advertisementApi.formatAdForForm(ad);
-                        setEditingAd(formattedAd); 
+                        setEditingAd(ad); 
                         setShowCreateDialog(true); 
                       }}
                       onDelete={handleDeleteAd}
