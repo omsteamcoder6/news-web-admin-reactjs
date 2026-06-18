@@ -1,6 +1,14 @@
 import { useState } from "react";
 
-export default function PastEventsManager({ events, enquiries, bookings, categories }) {
+export default function PastEventsManager({ 
+  events, 
+  enquiries, 
+  bookings, 
+  categories, 
+  onEdit, 
+  onDelete,
+  onClose // Add this to close any open forms
+}) {
   const [selectedEvent, setSelectedEvent] = useState(null);
 
   const pastEvents = events.filter(ev => ev.status === "past");
@@ -26,6 +34,51 @@ export default function PastEventsManager({ events, enquiries, bookings, categor
 
   const getTotalTicketsSold = (eventId) => {
     return getEventBookings(eventId).reduce((sum, bk) => sum + (bk.tickets || 1), 0);
+  };
+
+  // Handle Edit - This will open the EventForm
+  const handleEdit = (event) => {
+    console.log("✏️ Editing past event:", event);
+    
+    // Close any open modal first
+    setSelectedEvent(null);
+    
+    // Check if onEdit function is provided
+    if (typeof onEdit === 'function') {
+      // Call the parent's edit handler which should open the EventForm
+      onEdit(event);
+    } else {
+      console.error("❌ onEdit function is not provided");
+      alert("Edit functionality is not available. Please check the parent component.");
+    }
+  };
+
+  // Handle Delete - This will delete from database
+  const handleDelete = async (eventId, eventTitle) => {
+    // Show confirmation dialog
+    if (!window.confirm(`Are you sure you want to delete "${eventTitle}"? This action cannot be undone.`)) {
+      return;
+    }
+    
+    console.log("🗑️ Deleting past event:", eventId);
+    
+    // Close any open modal
+    setSelectedEvent(null);
+    
+    // Check if onDelete function is provided
+    if (typeof onDelete === 'function') {
+      try {
+        // Call the parent's delete handler
+        await onDelete(eventId);
+        console.log("✅ Event deleted successfully");
+      } catch (error) {
+        console.error("❌ Error deleting event:", error);
+        alert("Failed to delete event. Please try again.");
+      }
+    } else {
+      console.error("❌ onDelete function is not provided");
+      alert("Delete functionality is not available. Please check the parent component.");
+    }
   };
 
   if (pastEvents.length === 0) {
@@ -58,13 +111,14 @@ export default function PastEventsManager({ events, enquiries, bookings, categor
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {pastEvents.map(event => {
-          const eventEnquiries = getEventEnquiries(event.id);
-          const eventBookings = getEventBookings(event.id);
-          const totalRevenue = getTotalRevenue(event.id);
-          const totalTicketsSold = getTotalTicketsSold(event.id);
+          const eventId = event._id || event.id;
+          const eventEnquiries = getEventEnquiries(eventId);
+          const eventBookings = getEventBookings(eventId);
+          const totalRevenue = getTotalRevenue(eventId);
+          const totalTicketsSold = getTotalTicketsSold(eventId);
           
           return (
-            <div key={event.id} className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition">
+            <div key={eventId} className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition">
               <div className="bg-gradient-to-r from-gray-700 to-gray-900 px-5 py-4 text-white">
                 <div className="flex justify-between items-start">
                   <div className="flex-1">
@@ -85,7 +139,7 @@ export default function PastEventsManager({ events, enquiries, bookings, categor
                 <div className="flex items-center gap-4 text-sm">
                   <div className="flex items-center gap-2">
                     <i className="fas fa-map-marker-alt text-gray-400"></i>
-                    <span className="text-gray-600">{event.venue}</span>
+                    <span className="text-gray-600">{event.venue || "No venue specified"}</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <i className="fas fa-chair text-gray-400"></i>
@@ -110,6 +164,24 @@ export default function PastEventsManager({ events, enquiries, bookings, categor
                     <p className="text-lg font-bold text-green-600">₹{totalRevenue.toLocaleString()}</p>
                     <p className="text-xs text-gray-500">Revenue</p>
                   </div>
+                </div>
+
+                {/* Action Buttons - Edit & Delete */}
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => handleEdit(event)}
+                    className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition flex items-center justify-center gap-2"
+                  >
+                    <i className="fas fa-edit"></i>
+                    Edit Event
+                  </button>
+                  <button
+                    onClick={() => handleDelete(eventId, event.title)}
+                    className="flex-1 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition flex items-center justify-center gap-2"
+                  >
+                    <i className="fas fa-trash"></i>
+                    Delete
+                  </button>
                 </div>
 
                 <button
@@ -147,7 +219,7 @@ export default function PastEventsManager({ events, enquiries, bookings, categor
                 </div>
                 <div className="space-y-2">
                   <p className="text-sm text-gray-500">Venue</p>
-                  <p className="font-medium">{selectedEvent.venue}</p>
+                  <p className="font-medium">{selectedEvent.venue || "No venue specified"}</p>
                 </div>
                 <div className="space-y-2">
                   <p className="text-sm text-gray-500">Category</p>
@@ -163,7 +235,7 @@ export default function PastEventsManager({ events, enquiries, bookings, categor
                 </div>
                 <div className="space-y-2">
                   <p className="text-sm text-gray-500">Tickets Sold</p>
-                  <p className="font-medium">{getTotalTicketsSold(selectedEvent.id)}</p>
+                  <p className="font-medium">{getTotalTicketsSold(selectedEvent._id || selectedEvent.id)}</p>
                 </div>
               </div>
 
@@ -177,14 +249,14 @@ export default function PastEventsManager({ events, enquiries, bookings, categor
               <div>
                 <h3 className="text-lg font-semibold text-gray-900 mb-3">
                   <i className="fas fa-envelope mr-2 text-orange-600"></i>
-                  Enquiries ({getEventEnquiries(selectedEvent.id).length})
+                  Enquiries ({getEventEnquiries(selectedEvent._id || selectedEvent.id).length})
                 </h3>
-                {getEventEnquiries(selectedEvent.id).length === 0 ? (
+                {getEventEnquiries(selectedEvent._id || selectedEvent.id).length === 0 ? (
                   <p className="text-gray-500 text-sm">No enquiries for this event</p>
                 ) : (
                   <div className="space-y-2 max-h-60 overflow-y-auto">
-                    {getEventEnquiries(selectedEvent.id).map(enq => (
-                      <div key={enq.id} className="bg-gray-50 p-3 rounded-lg">
+                    {getEventEnquiries(selectedEvent._id || selectedEvent.id).map(enq => (
+                      <div key={enq._id || enq.id} className="bg-gray-50 p-3 rounded-lg">
                         <div className="flex justify-between text-sm">
                           <span className="font-medium">{enq.name}</span>
                           <span className="text-gray-500">{enq.date}</span>
@@ -200,9 +272,9 @@ export default function PastEventsManager({ events, enquiries, bookings, categor
               <div>
                 <h3 className="text-lg font-semibold text-gray-900 mb-3">
                   <i className="fas fa-ticket-alt mr-2 text-orange-600"></i>
-                  Bookings ({getEventBookings(selectedEvent.id).length})
+                  Bookings ({getEventBookings(selectedEvent._id || selectedEvent.id).length})
                 </h3>
-                {getEventBookings(selectedEvent.id).length === 0 ? (
+                {getEventBookings(selectedEvent._id || selectedEvent.id).length === 0 ? (
                   <p className="text-gray-500 text-sm">No bookings for this event</p>
                 ) : (
                   <div className="overflow-x-auto">
@@ -216,8 +288,8 @@ export default function PastEventsManager({ events, enquiries, bookings, categor
                         </tr>
                       </thead>
                       <tbody>
-                        {getEventBookings(selectedEvent.id).map(bk => (
-                          <tr key={bk.id} className="border-t border-gray-100">
+                        {getEventBookings(selectedEvent._id || selectedEvent.id).map(bk => (
+                          <tr key={bk._id || bk.id} className="border-t border-gray-100">
                             <td className="p-2">{bk.customer}</td>
                             <td className="p-2">{bk.tickets || 1}</td>
                             <td className="p-2">₹{bk.amount.toLocaleString()}</td>
@@ -234,6 +306,33 @@ export default function PastEventsManager({ events, enquiries, bookings, categor
                     </table>
                   </div>
                 )}
+              </div>
+
+              {/* Action buttons in modal */}
+              <div className="flex gap-2 pt-4 border-t border-gray-200">
+                <button
+                  onClick={() => {
+                    const event = selectedEvent;
+                    setSelectedEvent(null);
+                    handleEdit(event);
+                  }}
+                  className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition flex items-center justify-center gap-2"
+                >
+                  <i className="fas fa-edit"></i>
+                  Edit Event
+                </button>
+                <button
+                  onClick={() => {
+                    const eventId = selectedEvent._id || selectedEvent.id;
+                    const eventTitle = selectedEvent.title;
+                    setSelectedEvent(null);
+                    handleDelete(eventId, eventTitle);
+                  }}
+                  className="flex-1 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition flex items-center justify-center gap-2"
+                >
+                  <i className="fas fa-trash"></i>
+                  Delete Event
+                </button>
               </div>
             </div>
           </div>

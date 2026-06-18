@@ -1,159 +1,166 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 
-export default function BookingsManager({ bookings, events, onUpdate, onUpdateEventCapacity }) {
+const API_BASE_URL = import.meta.env.VITE_API_URL;
+
+export default function BookingsManager({ events, token, onUpdate }) {
+  const [bookings, setBookings] = useState([]);
+  const [loading, setLoading] = useState(false);
   const [filterStatus, setFilterStatus] = useState("all");
   const [selectedBooking, setSelectedBooking] = useState(null);
-  const [showPaymentModal, setShowPaymentModal] = useState(null);
-  const [paymentNote, setPaymentNote] = useState("");
+  const [error, setError] = useState(null);
+  // Pagination
+  const [page, setPage] = useState(1);
+  const [pagination, setPagination] = useState({ total: 0, pages: 1 });
+  const LIMIT = 10;
 
+  const getAuthHeaders = () => ({
+    "Content-Type": "application/json",
+    Authorization: `Bearer ${token}`,
+  });
+
+  // ─── Fetch bookings from API ───────────────────────────────────────────────
+  const fetchBookings = useCallback(async () => {
+    if (!token) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const params = new URLSearchParams({ page, limit: LIMIT });
+      if (filterStatus !== "all") params.append("paymentStatus", filterStatus);
+
+      const res = await fetch(
+        `${API_BASE_URL}/bookings/admin/all?${params.toString()}`,
+        { headers: getAuthHeaders() }
+      );
+      const data = await res.json();
+
+      if (data.success) {
+        setBookings(data.data);
+        setPagination(data.pagination || { total: data.data.length, pages: 1 });
+      } else {
+        setError(data.message || "Failed to fetch bookings");
+      }
+    } catch (err) {
+      console.error("Error fetching bookings:", err);
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }, [token, filterStatus, page]);
+
+  useEffect(() => {
+    fetchBookings();
+  }, [fetchBookings]);
+
+  // ─── Cancel booking via API ────────────────────────────────────────────────
+  const handleCancel = async (booking) => {
+    if (
+      !window.confirm(
+        `Cancel booking ${booking.bookingNumber} for ${booking.fullName}?`
+      )
+    )
+      return;
+
+    try {
+      const res = await fetch(
+        `${API_BASE_URL}/bookings/admin/${booking._id}/cancel`,
+        { method: "PUT", headers: getAuthHeaders() }
+      );
+      const data = await res.json();
+
+      if (data.success) {
+        alert(`Booking ${booking.bookingNumber} cancelled successfully.`);
+        await fetchBookings();
+        if (onUpdate) onUpdate();
+      } else {
+        alert(data.message || "Failed to cancel booking");
+      }
+    } catch (err) {
+      console.error("Cancel error:", err);
+      alert("Error cancelling booking. Please try again.");
+    }
+  };
+
+  // ─── Helper: event title by eventId ───────────────────────────────────────
   const getEventTitle = (eventId) => {
-    const event = events.find(ev => ev.id === eventId);
+    // eventId may already be populated by populate() in controller
+    if (eventId && typeof eventId === "object") return eventId.title || "—";
+    const event = events.find(
+      (ev) => ev._id === eventId || ev.id === eventId
+    );
     return event ? event.title : "Unknown Event";
   };
 
-  const getEvent = (eventId) => {
-    return events.find(ev => ev.id === eventId);
-  };
-
-  const getRemainingCapacity = (eventId) => {
-    const event = getEvent(eventId);
-    if (!event) return 0;
-    const eventBookings = bookings.filter(bk => bk.eventId === eventId && bk.status === "Paid");
-    const ticketsSold = eventBookings.reduce((sum, bk) => sum + (bk.tickets || 1), 0);
-    return event.capacity - ticketsSold;
-  };
-
-  const handleUpdateStatus = (bookingId, newStatus) => {
-    const booking = bookings.find(bk => bk.id === bookingId);
-    if (!booking) return;
-
-    let updatedBookings = [...bookings];
-    
-    if (newStatus === "Paid" && booking.status === "Pending") {
-      // Confirm payment - this reduces capacity
-      if (window.confirm(`Confirm payment for ${booking.customer}? This will deduct ${booking.tickets} tickets from event capacity.\n\nAmount: ₹${booking.amount}`)) {
-        updatedBookings = bookings.map(bk =>
-          bk.id === bookingId ? { ...bk, status: newStatus, paidAt: new Date().toISOString() } : bk
-        );
-        onUpdate(updatedBookings);
-        
-        // Update event capacity if needed
-        if (onUpdateEventCapacity) {
-          const event = getEvent(booking.eventId);
-          const eventBookings = updatedBookings.filter(bk => bk.eventId === booking.eventId && bk.status === "Paid");
-          const ticketsSold = eventBookings.reduce((sum, bk) => sum + (bk.tickets || 1), 0);
-          onUpdateEventCapacity(booking.eventId, ticketsSold);
-        }
-        
-        // Send confirmation email simulation
-        alert(`✅ Payment Confirmed!\n\nBooking ID: ${booking.id}\nCustomer: ${booking.customer}\nTickets: ${booking.tickets}\nAmount: ₹${booking.amount}\n\n📧 Confirmation email sent to ${booking.email}\n📱 SMS sent to ${booking.phone || 'N/A'}`);
-      }
-    } 
-    else if (newStatus === "Cancelled" && booking.status === "Pending") {
-      // Cancel pending booking - release seat hold
-      if (window.confirm(`Cancel pending booking for ${booking.customer}? This will release ${booking.tickets} held seats.`)) {
-        updatedBookings = bookings.map(bk =>
-          bk.id === bookingId ? { ...bk, status: newStatus, cancelledAt: new Date().toISOString() } : bk
-        );
-        onUpdate(updatedBookings);
-        
-        // Release the held seats back to capacity
-        if (onUpdateEventCapacity) {
-          const event = getEvent(booking.eventId);
-          // Note: For pending bookings, seats were on hold. We need to release them.
-          // This depends on how you track holds. For now, we just recalc paid bookings.
-          const eventBookings = updatedBookings.filter(bk => bk.eventId === booking.eventId && bk.status === "Paid");
-          const ticketsSold = eventBookings.reduce((sum, bk) => sum + (bk.tickets || 1), 0);
-          onUpdateEventCapacity(booking.eventId, ticketsSold);
-        }
-        alert(`❌ Booking cancelled for ${booking.customer}. Held seats have been released.`);
-      }
-    }
-    else if (newStatus === "Refunded" && booking.status === "Paid") {
-      // Refund - this INCREASES capacity back
-      if (window.confirm(`Refund ₹${booking.amount} to ${booking.customer}? This will add ${booking.tickets} tickets back to capacity.`)) {
-        updatedBookings = bookings.map(bk =>
-          bk.id === bookingId ? { ...bk, status: newStatus, refundedAt: new Date().toISOString() } : bk
-        );
-        onUpdate(updatedBookings);
-        
-        // Increase capacity back
-        if (onUpdateEventCapacity) {
-          const event = getEvent(booking.eventId);
-          const eventBookings = updatedBookings.filter(bk => bk.eventId === booking.eventId && bk.status === "Paid");
-          const ticketsSold = eventBookings.reduce((sum, bk) => sum + (bk.tickets || 1), 0);
-          onUpdateEventCapacity(booking.eventId, ticketsSold);
-        }
-        alert(`💰 Refund processed for ${booking.customer}. ${booking.tickets} ticket(s) added back to inventory.`);
-      }
-    }
-    else {
-      updatedBookings = bookings.map(bk =>
-        bk.id === bookingId ? { ...bk, status: newStatus } : bk
-      );
-      onUpdate(updatedBookings);
-    }
-  };
-
-  const handleDelete = (bookingId) => {
-    const booking = bookings.find(bk => bk.id === bookingId);
-    if (!booking) return;
-    
-    let warningMsg = `Are you sure you want to delete booking for ${booking.customer}?`;
-    if (booking.status === "Paid") {
-      warningMsg = `⚠️ WARNING: This booking is PAID (₹${booking.amount}).\n\nDeleting will remove ${booking.tickets} tickets from capacity.\n\nAre you sure?`;
-    }
-    
-    if (window.confirm(warningMsg)) {
-      let updatedBookings = bookings.filter(bk => bk.id !== bookingId);
-      onUpdate(updatedBookings);
-      
-      // Update capacity if deleting a paid booking
-      if (booking.status === "Paid" && onUpdateEventCapacity) {
-        const event = getEvent(booking.eventId);
-        const eventBookings = updatedBookings.filter(bk => bk.eventId === booking.eventId && bk.status === "Paid");
-        const ticketsSold = eventBookings.reduce((sum, bk) => sum + (bk.tickets || 1), 0);
-        onUpdateEventCapacity(booking.eventId, ticketsSold);
-      }
-      alert(`🗑️ Booking deleted for ${booking.customer}.`);
-    }
-  };
-
-  const handleSendReminder = (booking) => {
-    if (booking.status === "Pending") {
-      alert(`📧 Reminder sent to ${booking.email}\n📱 SMS sent to ${booking.phone}\n\nSubject: Complete your payment for ${getEventTitle(booking.eventId)}\n\nBooking ID: ${booking.id}\nAmount Due: ₹${booking.amount}`);
-    }
-  };
-
-  const getStatusBadge = (status) => {
-    const badges = {
-      Paid: "bg-green-100 text-green-800",
-      Pending: "bg-yellow-100 text-yellow-800",
-      Cancelled: "bg-red-100 text-red-800",
-      Refunded: "bg-purple-100 text-purple-800"
+  // ─── Status badge colours ──────────────────────────────────────────────────
+  // Backend paymentStatus: pending | completed | failed | refunded
+  // Backend bookingStatus: pending | confirmed | cancelled | completed
+  const paymentBadge = (status) => {
+    const map = {
+      pending: "bg-yellow-100 text-yellow-800",
+      completed: "bg-green-100 text-green-800",
+      failed: "bg-red-100 text-red-800",
+      refunded: "bg-purple-100 text-purple-800",
     };
-    return badges[status] || "bg-gray-100 text-gray-800";
+    return map[status] || "bg-gray-100 text-gray-800";
   };
 
-  const filteredBookings = filterStatus === "all"
-    ? bookings
-    : bookings.filter(bk => bk.status === filterStatus);
+  const bookingBadge = (status) => {
+    const map = {
+      pending: "bg-yellow-100 text-yellow-800",
+      confirmed: "bg-green-100 text-green-800",
+      cancelled: "bg-red-100 text-red-800",
+      completed: "bg-blue-100 text-blue-800",
+    };
+    return map[status] || "bg-gray-100 text-gray-800";
+  };
 
+  // ─── Stats (from current page data; full counts only if server sends them) ─
   const totalRevenue = bookings
-    .filter(bk => bk.status === "Paid")
-    .reduce((sum, bk) => sum + bk.amount, 0);
+    .filter((bk) => bk.paymentStatus === "completed")
+    .reduce((sum, bk) => sum + (bk.totalAmount || 0), 0);
 
-  const pendingCount = bookings.filter(bk => bk.status === "Pending").length;
-  const paidCount = bookings.filter(bk => bk.status === "Paid").length;
-  const cancelledCount = bookings.filter(bk => bk.status === "Cancelled").length;
-  const refundedCount = bookings.filter(bk => bk.status === "Refunded").length;
+  const pendingCount = bookings.filter(
+    (bk) => bk.paymentStatus === "pending"
+  ).length;
+  const completedCount = bookings.filter(
+    (bk) => bk.paymentStatus === "completed"
+  ).length;
+  const cancelledCount = bookings.filter(
+    (bk) => bk.bookingStatus === "cancelled"
+  ).length;
+  const refundedCount = bookings.filter(
+    (bk) => bk.paymentStatus === "refunded"
+  ).length;
+
+  const filterOptions = [
+    { label: "All", value: "all", count: pagination.total },
+    { label: "Pending", value: "pending", count: pendingCount },
+    { label: "Completed", value: "completed", count: completedCount },
+    { label: "Refunded", value: "refunded", count: refundedCount },
+  ];
 
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-semibold text-slate-800">Booking Management</h2>
-        <p className="text-slate-500 text-sm mt-1">Manage ticket bookings, payments, and capacity</p>
+        <h2 className="text-2xl font-semibold text-slate-800">
+          Booking Management
+        </h2>
+        <p className="text-slate-500 text-sm mt-1">
+          Manage ticket bookings and payments
+        </p>
       </div>
+
+      {/* Error */}
+      {error && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700 text-sm">
+          {error}
+          <button
+            onClick={fetchBookings}
+            className="ml-4 underline text-red-800"
+          >
+            Retry
+          </button>
+        </div>
+      )}
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
@@ -161,7 +168,9 @@ export default function BookingsManager({ bookings, events, onUpdate, onUpdateEv
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-500">Total Bookings</p>
-              <p className="text-2xl font-bold text-gray-900">{bookings.length}</p>
+              <p className="text-2xl font-bold text-gray-900">
+                {pagination.total}
+              </p>
             </div>
             <i className="fas fa-ticket-alt text-3xl text-orange-600"></i>
           </div>
@@ -169,8 +178,10 @@ export default function BookingsManager({ bookings, events, onUpdate, onUpdateEv
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-500">Pending Payments</p>
-              <p className="text-2xl font-bold text-yellow-600">{pendingCount}</p>
+              <p className="text-sm text-gray-500">Pending</p>
+              <p className="text-2xl font-bold text-yellow-600">
+                {pendingCount}
+              </p>
             </div>
             <i className="fas fa-clock text-3xl text-yellow-600"></i>
           </div>
@@ -178,8 +189,10 @@ export default function BookingsManager({ bookings, events, onUpdate, onUpdateEv
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-500">Completed</p>
-              <p className="text-2xl font-bold text-green-600">{paidCount}</p>
+              <p className="text-sm text-gray-500">Confirmed</p>
+              <p className="text-2xl font-bold text-green-600">
+                {completedCount}
+              </p>
             </div>
             <i className="fas fa-check-circle text-3xl text-green-600"></i>
           </div>
@@ -188,7 +201,9 @@ export default function BookingsManager({ bookings, events, onUpdate, onUpdateEv
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-500">Total Revenue</p>
-              <p className="text-2xl font-bold text-green-600">₹{totalRevenue.toLocaleString()}</p>
+              <p className="text-2xl font-bold text-green-600">
+                ₹{totalRevenue.toLocaleString()}
+              </p>
             </div>
             <i className="fas fa-rupee-sign text-3xl text-green-600"></i>
           </div>
@@ -198,7 +213,10 @@ export default function BookingsManager({ bookings, events, onUpdate, onUpdateEv
             <div>
               <p className="text-sm text-gray-500">Avg. Ticket Price</p>
               <p className="text-2xl font-bold text-blue-600">
-                ₹{paidCount > 0 ? Math.round(totalRevenue / paidCount) : 0}
+                ₹
+                {completedCount > 0
+                  ? Math.round(totalRevenue / completedCount).toLocaleString()
+                  : 0}
               </p>
             </div>
             <i className="fas fa-chart-line text-3xl text-blue-600"></i>
@@ -208,205 +226,367 @@ export default function BookingsManager({ bookings, events, onUpdate, onUpdateEv
 
       {/* Filter Tabs */}
       <div className="flex gap-2 border-b border-gray-200 flex-wrap">
-        {["all", "Pending", "Paid", "Cancelled", "Refunded"].map(status => {
-          let count = 0;
-          if (status === "all") count = bookings.length;
-          else if (status === "Pending") count = pendingCount;
-          else if (status === "Paid") count = paidCount;
-          else if (status === "Cancelled") count = cancelledCount;
-          else if (status === "Refunded") count = refundedCount;
-          
-          return (
-            <button
-              key={status}
-              onClick={() => setFilterStatus(status)}
-              className={`px-4 py-2 text-sm font-medium transition ${
-                filterStatus === status
-                  ? "text-orange-600 border-b-2 border-orange-600"
-                  : "text-gray-500 hover:text-gray-700"
-              }`}
-            >
-              {status === "all" ? "All" : status}
-              {count > 0 && (
-                <span className={`ml-2 px-1.5 py-0.5 text-xs rounded-full ${
-                  status === "Pending" ? "bg-yellow-100 text-yellow-800" :
-                  status === "Paid" ? "bg-green-100 text-green-800" :
-                  status === "Cancelled" ? "bg-red-100 text-red-800" :
-                  status === "Refunded" ? "bg-purple-100 text-purple-800" :
-                  "bg-gray-100 text-gray-800"
-                }`}>
-                  {count}
-                </span>
-              )}
-            </button>
-          );
-        })}
+        {filterOptions.map(({ label, value, count }) => (
+          <button
+            key={value}
+            onClick={() => {
+              setFilterStatus(value);
+              setPage(1);
+            }}
+            className={`px-4 py-2 text-sm font-medium transition ${
+              filterStatus === value
+                ? "text-orange-600 border-b-2 border-orange-600"
+                : "text-gray-500 hover:text-gray-700"
+            }`}
+          >
+            {label}
+            {count > 0 && (
+              <span
+                className={`ml-2 px-1.5 py-0.5 text-xs rounded-full ${
+                  value === "pending"
+                    ? "bg-yellow-100 text-yellow-800"
+                    : value === "completed"
+                    ? "bg-green-100 text-green-800"
+                    : value === "refunded"
+                    ? "bg-purple-100 text-purple-800"
+                    : "bg-gray-100 text-gray-800"
+                }`}
+              >
+                {count}
+              </span>
+            )}
+          </button>
+        ))}
       </div>
 
-      {filteredBookings.length === 0 ? (
+      {/* Loading */}
+      {loading && (
+        <div className="flex justify-center py-12">
+          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-orange-600"></div>
+        </div>
+      )}
+
+      {/* Table */}
+      {!loading && bookings.length === 0 ? (
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
           <i className="fas fa-credit-card text-6xl text-gray-300 mb-4"></i>
           <p className="text-gray-500 text-lg">No bookings found</p>
-          <p className="text-gray-400 mt-2">Bookings will appear here when customers purchase tickets</p>
+          <p className="text-gray-400 mt-2">
+            Bookings will appear here when customers purchase tickets
+          </p>
         </div>
       ) : (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50 border-b border-gray-200">
-                <tr>
-                  <th className="text-left px-6 py-4 text-sm font-semibold text-gray-700">Booking ID</th>
-                  <th className="text-left px-6 py-4 text-sm font-semibold text-gray-700">Customer</th>
-                  <th className="text-left px-6 py-4 text-sm font-semibold text-gray-700">Contact</th>
-                  <th className="text-left px-6 py-4 text-sm font-semibold text-gray-700">Event</th>
-                  <th className="text-left px-6 py-4 text-sm font-semibold text-gray-700">Tickets</th>
-                  <th className="text-left px-6 py-4 text-sm font-semibold text-gray-700">Amount</th>
-                  <th className="text-left px-6 py-4 text-sm font-semibold text-gray-700">Status</th>
-                  <th className="text-left px-6 py-4 text-sm font-semibold text-gray-700">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {filteredBookings.map(booking => {
-                  const event = getEvent(booking.eventId);
-                  const remainingCapacity = event ? getRemainingCapacity(booking.eventId) : 0;
-                  
-                  return (
-                    <tr key={booking.id} className="hover:bg-gray-50 transition">
+        !loading && (
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-gray-50 border-b border-gray-200">
+                  <tr>
+                    <th className="text-left px-6 py-4 text-sm font-semibold text-gray-700">
+                      Booking #
+                    </th>
+                    <th className="text-left px-6 py-4 text-sm font-semibold text-gray-700">
+                      Customer
+                    </th>
+                    <th className="text-left px-6 py-4 text-sm font-semibold text-gray-700">
+                      Contact
+                    </th>
+                    <th className="text-left px-6 py-4 text-sm font-semibold text-gray-700">
+                      Event
+                    </th>
+                    <th className="text-left px-6 py-4 text-sm font-semibold text-gray-700">
+                      Tickets
+                    </th>
+                    <th className="text-left px-6 py-4 text-sm font-semibold text-gray-700">
+                      Amount
+                    </th>
+                    <th className="text-left px-6 py-4 text-sm font-semibold text-gray-700">
+                      Payment
+                    </th>
+                    <th className="text-left px-6 py-4 text-sm font-semibold text-gray-700">
+                      Booking
+                    </th>
+                    <th className="text-left px-6 py-4 text-sm font-semibold text-gray-700">
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {bookings.map((booking) => (
+                    <tr
+                      key={booking._id}
+                      className="hover:bg-gray-50 transition"
+                    >
                       <td className="px-6 py-4 font-mono text-sm">
-                        <button 
+                        <button
                           onClick={() => setSelectedBooking(booking)}
                           className="text-orange-600 hover:underline"
                         >
-                          {booking.id.slice(0, 8)}...
+                          {booking.bookingNumber}
                         </button>
                       </td>
-                      <td className="px-6 py-4 font-medium text-gray-900">{booking.customer}</td>
-                      <td className="px-6 py-4 text-sm text-gray-600">
-                        <div>{booking.email}</div>
-                        <div className="text-xs text-gray-500">{booking.phone || 'N/A'}</div>
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-600">
-                        {getEventTitle(booking.eventId)}
-                        {remainingCapacity < 20 && remainingCapacity > 0 && booking.status === "Pending" && (
-                          <span className="ml-2 text-xs text-orange-600">(Only {remainingCapacity} left!)</span>
+                      <td className="px-6 py-4 font-medium text-gray-900">
+                        {booking.fullName}
+                        {booking.companyName && (
+                          <div className="text-xs text-gray-400">
+                            {booking.companyName}
+                          </div>
                         )}
                       </td>
                       <td className="px-6 py-4 text-sm text-gray-600">
-                        <span className="font-medium">{booking.tickets}</span> ticket(s)
+                        <div>{booking.email}</div>
+                        <div className="text-xs text-gray-500">
+                          {booking.contactNumber || "N/A"}
+                        </div>
                       </td>
-                      <td className="px-6 py-4 font-medium text-gray-900">₹{booking.amount.toLocaleString()}</td>
+                      <td className="px-6 py-4 text-sm text-gray-600">
+                        {getEventTitle(booking.eventId)}
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-600">
+                        <span className="font-medium">{booking.tickets}</span>{" "}
+                        ticket(s)
+                        {booking.ticketPrice > 0 && (
+                          <div className="text-xs text-gray-400">
+                            @ ₹{booking.ticketPrice.toLocaleString()} each
+                          </div>
+                        )}
+                      </td>
+                      <td className="px-6 py-4 font-medium text-gray-900">
+                        ₹{(booking.totalAmount || 0).toLocaleString()}
+                      </td>
                       <td className="px-6 py-4">
-                        <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getStatusBadge(booking.status)}`}>
-                          {booking.status}
+                        <span
+                          className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${paymentBadge(
+                            booking.paymentStatus
+                          )}`}
+                        >
+                          {booking.paymentStatus}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span
+                          className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${bookingBadge(
+                            booking.bookingStatus
+                          )}`}
+                        >
+                          {booking.bookingStatus}
                         </span>
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex gap-2">
-                          {booking.status === "Pending" && (
-                            <>
-                              <button
-                                onClick={() => handleUpdateStatus(booking.id, "Paid")}
-                                className="text-green-600 hover:text-green-800"
-                                title="Confirm Payment & Book Tickets"
-                              >
-                                <i className="fas fa-check-circle text-xl"></i>
-                              </button>
-                              <button
-                                onClick={() => handleSendReminder(booking)}
-                                className="text-blue-600 hover:text-blue-800"
-                                title="Send Payment Reminder"
-                              >
-                                <i className="fas fa-bell text-xl"></i>
-                              </button>
-                            </>
-                          )}
-                          {booking.status === "Paid" && (
-                            <button
-                              onClick={() => handleUpdateStatus(booking.id, "Refunded")}
-                              className="text-purple-600 hover:text-purple-800"
-                              title="Refund Payment"
-                            >
-                              <i className="fas fa-undo-alt text-xl"></i>
-                            </button>
-                          )}
-                          {booking.status !== "Cancelled" && booking.status !== "Refunded" && (
-                            <button
-                              onClick={() => handleUpdateStatus(booking.id, "Cancelled")}
-                              className="text-red-600 hover:text-red-800"
-                              title="Cancel Booking"
-                            >
-                              <i className="fas fa-times-circle text-xl"></i>
-                            </button>
-                          )}
+                          {/* View Details */}
                           <button
-                            onClick={() => handleDelete(booking.id)}
-                            className="text-gray-400 hover:text-red-600"
-                            title="Delete Booking"
+                            onClick={() => setSelectedBooking(booking)}
+                            className="text-blue-600 hover:text-blue-800"
+                            title="View Details"
                           >
-                            <i className="fas fa-trash-alt text-xl"></i>
+                            <i className="fas fa-eye text-lg"></i>
                           </button>
+                          {/* Cancel (if not already cancelled/refunded) */}
+                          {booking.bookingStatus !== "cancelled" &&
+                            booking.bookingStatus !== "completed" && (
+                              <button
+                                onClick={() => handleCancel(booking)}
+                                className="text-red-600 hover:text-red-800"
+                                title="Cancel Booking"
+                              >
+                                <i className="fas fa-times-circle text-lg"></i>
+                              </button>
+                            )}
                         </div>
                       </td>
                     </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Pagination */}
+            {pagination.pages > 1 && (
+              <div className="flex items-center justify-between px-6 py-4 border-t border-gray-100">
+                <p className="text-sm text-gray-500">
+                  Page {page} of {pagination.pages} &nbsp;·&nbsp;{" "}
+                  {pagination.total} total bookings
+                </p>
+                <div className="flex gap-2">
+                  <button
+                    disabled={page === 1}
+                    onClick={() => setPage((p) => p - 1)}
+                    className="px-3 py-1 text-sm border border-gray-300 rounded-lg disabled:opacity-40 hover:bg-gray-50"
+                  >
+                    Previous
+                  </button>
+                  <button
+                    disabled={page === pagination.pages}
+                    onClick={() => setPage((p) => p + 1)}
+                    className="px-3 py-1 text-sm border border-gray-300 rounded-lg disabled:opacity-40 hover:bg-gray-50"
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
-        </div>
+        )
       )}
 
-      {/* Booking Details Modal */}
+      {/* Booking Detail Modal */}
       {selectedBooking && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+          <div className="bg-white rounded-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
             <div className="p-6">
               <div className="flex justify-between items-center mb-4">
-                <h3 className="text-xl font-bold text-gray-900">Booking Details</h3>
-                <button onClick={() => setSelectedBooking(null)} className="text-gray-400 hover:text-gray-600">
+                <h3 className="text-xl font-bold text-gray-900">
+                  Booking Details
+                </h3>
+                <button
+                  onClick={() => setSelectedBooking(null)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
                   <i className="fas fa-times text-xl"></i>
                 </button>
               </div>
+
               <div className="space-y-3">
+                {/* Booking Info */}
                 <div className="bg-gray-50 p-3 rounded-lg">
-                  <p className="text-sm text-gray-500">Booking Information</p>
-                  <p className="font-mono text-sm mt-1">{selectedBooking.id}</p>
-                  <p className="text-xs text-gray-400 mt-1">Created: {selectedBooking.createdAt ? new Date(selectedBooking.createdAt).toLocaleString() : selectedBooking.date}</p>
-                </div>
-                <div className="bg-gray-50 p-3 rounded-lg">
-                  <p className="text-sm text-gray-500">Customer Details</p>
-                  <p className="font-medium mt-1">{selectedBooking.customer}</p>
-                  <p className="text-sm">{selectedBooking.email}</p>
-                  <p className="text-sm">{selectedBooking.phone || 'No phone provided'}</p>
-                </div>
-                <div className="bg-gray-50 p-3 rounded-lg">
-                  <p className="text-sm text-gray-500">Event Details</p>
-                  <p className="font-medium mt-1">{getEventTitle(selectedBooking.eventId)}</p>
-                  <p className="text-sm">Tickets: {selectedBooking.tickets}</p>
-                  <p className="text-sm">Amount: ₹{selectedBooking.amount.toLocaleString()}</p>
-                </div>
-                <div className="bg-gray-50 p-3 rounded-lg">
-                  <p className="text-sm text-gray-500">Payment Status</p>
-                  <span className={`inline-flex mt-1 px-2 py-1 text-xs font-medium rounded-full ${getStatusBadge(selectedBooking.status)}`}>
-                    {selectedBooking.status}
-                  </span>
-                  {selectedBooking.paidAt && (
-                    <p className="text-xs text-gray-500 mt-1">Paid on: {new Date(selectedBooking.paidAt).toLocaleString()}</p>
+                  <p className="text-xs font-semibold text-gray-500 uppercase mb-1">
+                    Booking Information
+                  </p>
+                  <p className="font-mono text-sm font-medium">
+                    {selectedBooking.bookingNumber}
+                  </p>
+                  <p className="text-xs text-gray-400 mt-1">
+                    Created:{" "}
+                    {selectedBooking.createdAt
+                      ? new Date(selectedBooking.createdAt).toLocaleString()
+                      : "—"}
+                  </p>
+                  {selectedBooking.razorpayOrderId && (
+                    <p className="text-xs text-gray-400 mt-1">
+                      Razorpay Order: {selectedBooking.razorpayOrderId}
+                    </p>
+                  )}
+                  {selectedBooking.razorpayPaymentId && (
+                    <p className="text-xs text-gray-400 mt-0.5">
+                      Payment ID: {selectedBooking.razorpayPaymentId}
+                    </p>
                   )}
                 </div>
-              </div>
-              <div className="flex gap-3 mt-6">
-                {selectedBooking.status === "Pending" && (
-                  <button
-                    onClick={() => {
-                      handleUpdateStatus(selectedBooking.id, "Paid");
-                      setSelectedBooking(null);
-                    }}
-                    className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
-                  >
-                    Confirm Payment
-                  </button>
+
+                {/* Customer Details */}
+                <div className="bg-gray-50 p-3 rounded-lg">
+                  <p className="text-xs font-semibold text-gray-500 uppercase mb-1">
+                    Customer Details
+                  </p>
+                  <p className="font-medium">{selectedBooking.fullName}</p>
+                  {selectedBooking.companyName && (
+                    <p className="text-sm text-gray-600">
+                      {selectedBooking.companyName}
+                    </p>
+                  )}
+                  <p className="text-sm text-gray-600">
+                    {selectedBooking.email}
+                  </p>
+                  <p className="text-sm text-gray-600">
+                    {selectedBooking.contactNumber || "No phone provided"}
+                  </p>
+                  <p className="text-xs text-gray-500 mt-1">
+                    {[
+                      selectedBooking.address,
+                      selectedBooking.city,
+                      selectedBooking.state,
+                      selectedBooking.pincode,
+                    ]
+                      .filter(Boolean)
+                      .join(", ")}
+                  </p>
+                </div>
+
+                {/* Event Details */}
+                <div className="bg-gray-50 p-3 rounded-lg">
+                  <p className="text-xs font-semibold text-gray-500 uppercase mb-1">
+                    Event Details
+                  </p>
+                  <p className="font-medium">
+                    {getEventTitle(selectedBooking.eventId)}
+                  </p>
+                  <p className="text-sm text-gray-600">
+                    Tickets: {selectedBooking.tickets}
+                  </p>
+                  <p className="text-sm text-gray-600">
+                    Price per ticket: ₹
+                    {(selectedBooking.ticketPrice || 0).toLocaleString()}
+                  </p>
+                  <p className="text-sm font-semibold text-gray-800 mt-1">
+                    Total: ₹
+                    {(selectedBooking.totalAmount || 0).toLocaleString()}
+                  </p>
+                </div>
+
+                {/* Status */}
+                <div className="bg-gray-50 p-3 rounded-lg">
+                  <p className="text-xs font-semibold text-gray-500 uppercase mb-2">
+                    Status
+                  </p>
+                  <div className="flex gap-3 flex-wrap">
+                    <div>
+                      <p className="text-xs text-gray-400 mb-1">Payment</p>
+                      <span
+                        className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${paymentBadge(
+                          selectedBooking.paymentStatus
+                        )}`}
+                      >
+                        {selectedBooking.paymentStatus}
+                      </span>
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-400 mb-1">Booking</p>
+                      <span
+                        className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${bookingBadge(
+                          selectedBooking.bookingStatus
+                        )}`}
+                      >
+                        {selectedBooking.bookingStatus}
+                      </span>
+                    </div>
+                  </div>
+                  {selectedBooking.paymentCompletedAt && (
+                    <p className="text-xs text-gray-500 mt-2">
+                      Paid on:{" "}
+                      {new Date(
+                        selectedBooking.paymentCompletedAt
+                      ).toLocaleString()}
+                    </p>
+                  )}
+                </div>
+
+                {/* Message */}
+                {selectedBooking.message && (
+                  <div className="bg-gray-50 p-3 rounded-lg">
+                    <p className="text-xs font-semibold text-gray-500 uppercase mb-1">
+                      Message
+                    </p>
+                    <p className="text-sm text-gray-600">
+                      {selectedBooking.message}
+                    </p>
+                  </div>
                 )}
+              </div>
+
+              <div className="flex gap-3 mt-6">
+                {selectedBooking.bookingStatus !== "cancelled" &&
+                  selectedBooking.bookingStatus !== "completed" && (
+                    <button
+                      onClick={() => {
+                        handleCancel(selectedBooking);
+                        setSelectedBooking(null);
+                      }}
+                      className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+                    >
+                      Cancel Booking
+                    </button>
+                  )}
                 <button
                   onClick={() => setSelectedBooking(null)}
                   className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"

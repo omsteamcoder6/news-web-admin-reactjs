@@ -1,27 +1,73 @@
 import { useState } from "react";
 
 export default function EventForm({ event, categories, onSave, onClose }) {
+  // ✅ FIXED: Use VITE_API_URL from environment
+  const RAW_API_URL = import.meta.env.VITE_API_URL || '';
+  const API_BASE_URL = RAW_API_URL.replace(/\/api\/?$/, '');
+
+  // ✅ FIXED: Helper function to get full image URL
+  const getFullImageUrl = (imageUrl) => {
+    if (!imageUrl) return "";
+    if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
+      return imageUrl;
+    }
+    if (imageUrl.startsWith('/uploads')) {
+      return `${API_BASE_URL}${imageUrl}`;
+    }
+    return imageUrl;
+  };
+
+  // Format date for input - keep it in local time
+  const formatDateForInput = (date) => {
+    if (!date) return "";
+    const d = new Date(date);
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    const hours = String(d.getHours()).padStart(2, '0');
+    const minutes = String(d.getMinutes()).padStart(2, '0');
+    return `${year}-${month}-${day}T${hours}:${minutes}`;
+  };
+
+  // Debug: Log what's received
+  console.log("🔍 EventForm - Categories received:", categories);
+  console.log("🔍 EventForm - Categories length:", categories?.length);
+
+  // Ensure categories is an array
+  const categoriesArray = Array.isArray(categories) ? categories : [];
+  
+  // Filter active categories or use all if no status filter
+  const activeCategories = categoriesArray.filter(cat => cat.status === "active");
+  
+  // If no active categories, use all categories
+  const availableCategories = activeCategories.length > 0 ? activeCategories : categoriesArray;
+
+  console.log("🔍 EventForm - Available categories:", availableCategories);
+
   const [formData, setFormData] = useState({
     title: event?.title || "",
-    categorySlug: event?.categorySlug || (categories[0]?.slug || ""),
-    date: event?.date || "",
+    categorySlug: event?.categorySlug || (availableCategories[0]?.slug || ""),
+    date: formatDateForInput(event?.date),
     venue: event?.venue || "",
     mapUrl: event?.mapUrl || "",
     desc: event?.desc || "",
     capacity: event?.capacity || 100,
     price: event?.price || 0,
-    imageUrl: event?.imageUrl || ""
+    status: event?.status || "upcoming",
   });
   
-  const [imagePreview, setImagePreview] = useState(event?.imageUrl || "");
+  const [imagePreview, setImagePreview] = useState(getFullImageUrl(event?.imageUrl) || "");
+  const [selectedFile, setSelectedFile] = useState(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [imageChanged, setImageChanged] = useState(false);
+  const [imageAction, setImageAction] = useState(null);
 
   const handleImageUpload = (e) => {
     const file = e.target.files[0];
     if (!file) return;
 
     if (!file.type.startsWith("image/")) {
-      alert("Please select an image file (JPEG, PNG, GIF, etc.)");
+      alert("Please select an image file");
       return;
     }
 
@@ -31,12 +77,13 @@ export default function EventForm({ event, categories, onSave, onClose }) {
     }
 
     setIsUploading(true);
+    setSelectedFile(file);
+    setImageChanged(true);
+    setImageAction('new');
     
     const reader = new FileReader();
     reader.onloadend = () => {
-      const base64String = reader.result;
-      setFormData({ ...formData, imageUrl: base64String });
-      setImagePreview(base64String);
+      setImagePreview(reader.result);
       setIsUploading(false);
     };
     reader.onerror = () => {
@@ -46,18 +93,16 @@ export default function EventForm({ event, categories, onSave, onClose }) {
     reader.readAsDataURL(file);
   };
 
-  const handleImageUrlChange = (url) => {
-    setFormData({ ...formData, imageUrl: url });
-    setImagePreview(url);
-  };
-
   const handleRemoveImage = () => {
-    setFormData({ ...formData, imageUrl: "" });
     setImagePreview("");
+    setSelectedFile(null);
+    setImageChanged(true);
+    setImageAction('removed');
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    
     if (!formData.title.trim()) {
       alert("Please enter event title");
       return;
@@ -74,10 +119,58 @@ export default function EventForm({ event, categories, onSave, onClose }) {
       alert("Please enter max capacity (minimum 1)");
       return;
     }
-    onSave(formData);
-  };
+    if (!formData.status) {
+      alert("Please select event status");
+      return;
+    }
 
-  const activeCategories = categories.filter(cat => cat.status === "active");
+    // IMPORTANT: Convert local datetime to UTC for storage
+    const localDate = new Date(formData.date);
+    const utcDate = localDate.toISOString();
+
+    console.log("Submitting event with data:", {
+      title: formData.title,
+      categorySlug: formData.categorySlug,
+      localDate: formData.date,
+      utcDate: utcDate,
+      capacity: formData.capacity,
+      status: formData.status,
+      hasImage: !!selectedFile,
+      imageAction: imageAction
+    });
+
+    // Create FormData for file upload
+    const submitData = new FormData();
+    
+    submitData.append('title', formData.title.trim());
+    submitData.append('categorySlug', formData.categorySlug);
+    submitData.append('date', utcDate);
+    submitData.append('venue', formData.venue || "");
+    submitData.append('mapUrl', formData.mapUrl || "");
+    submitData.append('desc', formData.desc || "");
+    submitData.append('capacity', parseInt(formData.capacity) || 0);
+    submitData.append('price', parseFloat(formData.price) || 0);
+    submitData.append('status', formData.status);
+    
+    if (event) {
+      if (imageAction === 'new' && selectedFile) {
+        submitData.append('image', selectedFile);
+      } else if (imageAction === 'removed') {
+        submitData.append('imageUrl', '');
+      }
+    } else {
+      if (selectedFile) {
+        submitData.append('image', selectedFile);
+      }
+    }
+
+    console.log("FormData entries:");
+    for (let pair of submitData.entries()) {
+      console.log(pair[0] + ': ' + (pair[1] instanceof File ? pair[1].name : pair[1]));
+    }
+
+    onSave(submitData);
+  };
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -114,24 +207,59 @@ export default function EventForm({ event, categories, onSave, onClose }) {
             <label className="block text-sm font-semibold text-gray-700 mb-2">
               Category <span className="text-red-500">*</span>
             </label>
+            
+            <p className="text-xs text-gray-400 mb-2">
+              Categories available: {availableCategories.length}
+            </p>
+            
             <select
               value={formData.categorySlug}
               onChange={(e) => setFormData({ ...formData, categorySlug: e.target.value })}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none"
               required
             >
-              <option value="">Select a category</option>
-              {activeCategories.map(category => (
-                <option key={category.slug} value={category.slug}>
-                  {category.name}
+              <option value="">-- Select a category --</option>
+              {availableCategories.map((category) => (
+                <option key={category._id || category.slug} value={category.slug}>
+                  {category.name} {category.status === "active" ? "✓" : ""}
                 </option>
               ))}
             </select>
-            {activeCategories.length === 0 && (
-              <p className="text-sm text-orange-600 mt-1">
-                ⚠️ No categories found. Please add categories in the Categories tab first.
-              </p>
+            
+            {availableCategories.length === 0 && (
+              <div className="mt-2 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                <p className="text-sm text-yellow-800">
+                  ⚠️ No categories found. Please:
+                </p>
+                <ul className="text-xs text-yellow-700 mt-1 list-disc list-inside">
+                  <li>Go to the "Categories" tab</li>
+                  <li>Add a new category</li>
+                  <li>Make sure it's marked as "active"</li>
+                  <li>Then come back to create an event</li>
+                </ul>
+              </div>
             )}
+          </div>
+
+          {/* Event Status */}
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">
+              Event Status <span className="text-red-500">*</span>
+            </label>
+            <select
+              value={formData.status}
+              onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none"
+              required
+            >
+              <option value="upcoming">📅 Upcoming</option>
+              <option value="past">📆 Past</option>
+              <option value="ongoing">🔄 Ongoing</option>
+              <option value="cancelled">❌ Cancelled</option>
+            </select>
+            <p className="text-xs text-gray-500 mt-1">
+              Select "Upcoming" for future events or "Past" for events that have already happened
+            </p>
           </div>
 
           {/* Date & Time */}
@@ -146,6 +274,9 @@ export default function EventForm({ event, categories, onSave, onClose }) {
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none"
               required
             />
+            <p className="text-xs text-gray-500 mt-1">
+              Enter date and time in your local timezone (IST)
+            </p>
           </div>
 
           {/* Venue */}
@@ -191,10 +322,10 @@ export default function EventForm({ event, categories, onSave, onClose }) {
           </div>
 
           <div className="grid grid-cols-2 gap-4">
-            {/* Max Capacity - Total Seats */}
+            {/* Max Capacity */}
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-2">
-                Total Seats (Max Capacity) <span className="text-red-500">*</span>
+                Total Seats <span className="text-red-500">*</span>
               </label>
               <input
                 type="number"
@@ -204,7 +335,6 @@ export default function EventForm({ event, categories, onSave, onClose }) {
                 min="1"
                 required
               />
-              <p className="text-xs text-gray-500 mt-1">Total number of tickets available for this event</p>
             </div>
 
             {/* Price */}
@@ -219,11 +349,10 @@ export default function EventForm({ event, categories, onSave, onClose }) {
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none"
                 min="0"
               />
-              <p className="text-xs text-gray-500 mt-1">Set 0 for Free Entry</p>
             </div>
           </div>
 
-          {/* Cover Image Upload Section */}
+          {/* Cover Image Upload */}
           <div className="border border-gray-200 rounded-xl p-4 bg-gray-50">
             <label className="block text-sm font-semibold text-gray-700 mb-3">
               Cover Image
@@ -235,6 +364,11 @@ export default function EventForm({ event, categories, onSave, onClose }) {
                   src={imagePreview} 
                   alt="Cover preview" 
                   className="w-32 h-32 object-cover rounded-lg border border-gray-300"
+                  onError={(e) => {
+                    e.target.onerror = null;
+                    e.target.style.display = 'none';
+                    console.error('❌ Failed to load preview image:', imagePreview);
+                  }}
                 />
                 <button
                   type="button"
@@ -246,50 +380,38 @@ export default function EventForm({ event, categories, onSave, onClose }) {
               </div>
             )}
 
-            <div className="space-y-3">
-              <div>
-                <label className="block text-sm text-gray-600 mb-1">
-                  Upload from computer
+            <div>
+              <label className="block text-sm text-gray-600 mb-1">
+                Upload Image
+              </label>
+              <div className="flex items-center gap-3">
+                <label className={`cursor-pointer bg-white border border-gray-300 rounded-lg px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition ${isUploading ? "opacity-50 cursor-not-allowed" : ""}`}>
+                  {isUploading ? "Uploading..." : "Choose Image"}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageUpload}
+                    className="hidden"
+                    disabled={isUploading}
+                  />
                 </label>
-                <div className="flex items-center gap-3">
-                  <label className={`cursor-pointer bg-white border border-gray-300 rounded-lg px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition ${isUploading ? "opacity-50 cursor-not-allowed" : ""}`}>
-                    {isUploading ? "Uploading..." : "Choose Image"}
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={handleImageUpload}
-                      className="hidden"
-                      disabled={isUploading}
-                    />
-                  </label>
-                  <span className="text-xs text-gray-500">JPEG, PNG, GIF up to 2MB</span>
-                </div>
+                <span className="text-xs text-gray-500">JPEG, PNG, GIF up to 2MB</span>
               </div>
-
-              <div className="relative">
-                <div className="absolute inset-0 flex items-center">
-                  <div className="w-full border-t border-gray-300"></div>
-                </div>
-                <div className="relative flex justify-center text-xs">
-                  <span className="px-2 bg-gray-50 text-gray-500">OR</span>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm text-gray-600 mb-1">
-                  Image URL (from web)
-                </label>
-                <input
-                  type="text"
-                  value={formData.imageUrl}
-                  onChange={(e) => handleImageUrlChange(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none"
-                  placeholder="https://example.com/event-image.jpg"
-                />
-                <p className="text-xs text-gray-400 mt-1">
-                  Paste a direct image URL from Imgur, Cloudinary, or any image hosting service
+              {selectedFile && (
+                <p className="text-xs text-blue-600 mt-1">
+                  ✓ Selected: {selectedFile.name}
                 </p>
-              </div>
+              )}
+              {event && !imageChanged && imagePreview && (
+                <p className="text-xs text-green-600 mt-1">
+                  ✓ Current image will be preserved
+                </p>
+              )}
+              {imageAction === 'removed' && (
+                <p className="text-xs text-red-600 mt-1">
+                  ✓ Image will be removed
+                </p>
+              )}
             </div>
           </div>
 

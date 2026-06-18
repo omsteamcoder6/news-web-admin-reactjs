@@ -82,7 +82,7 @@ export function TopBar() {
     }
   }
 
-  // Fetch all pending notifications (both advertising inquiries and contact submissions)
+  // Fetch all pending notifications (advertising inquiries, contact submissions, and bookings)
   const fetchAllNotifications = async (silent = false) => {
     if (!token || userRole !== 'admin') return
     
@@ -100,6 +100,13 @@ export function TopBar() {
       
       // Fetch new contact submissions (status = 'new')
       const contactResponse = await fetch(`${API_BASE_URL}/contact?status=new&limit=50`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
+      
+      // Fetch pending bookings
+      const bookingsResponse = await fetch(`${API_BASE_URL}/bookings/admin/all?paymentStatus=pending&limit=50`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -151,6 +158,33 @@ export function TopBar() {
           details: `Message: ${contact.message.substring(0, 100)}${contact.message.length > 100 ? '...' : ''}`
         }))
         allNotifications.push(...contactNotifications)
+      }
+      
+      // Process pending bookings
+      if (bookingsResponse.ok) {
+        const bookingsData = await bookingsResponse.json()
+        const pendingBookings = bookingsData.data || []
+        
+        const bookingNotifications = pendingBookings.map(booking => ({
+          id: `booking_${booking._id}`,
+          type: 'booking',
+          title: 'New Pending Booking',
+          message: `${booking.fullName} booked ${booking.tickets} ticket(s) for ${booking.eventId?.title || 'an event'}`,
+          time: booking.createdAt,
+          read: false,
+          itemId: booking._id,
+          fullName: booking.fullName,
+          email: booking.email,
+          phone: booking.contactNumber || 'Not provided',
+          bookingNumber: booking.bookingNumber,
+          tickets: booking.tickets,
+          totalAmount: booking.totalAmount,
+          paymentStatus: booking.paymentStatus,
+          bookingStatus: booking.bookingStatus,
+          eventTitle: booking.eventId?.title || 'Unknown Event',
+          details: `Booking #${booking.bookingNumber} • ${booking.tickets} tickets • ₹${booking.totalAmount?.toLocaleString() || 0}`
+        }))
+        allNotifications.push(...bookingNotifications)
       }
       
       // Sort by time (newest first)
@@ -207,9 +241,11 @@ export function TopBar() {
     
     // Navigate based on notification type
     if (notification.type === 'inquiry') {
-      window.location.href = `/admin/inquiries/${notification.itemId}`
-    } else if (notification.type === 'contact') {
-      window.location.href = `/admin/contact/${notification.itemId}`
+      window.location.href = `/admin/inquiry/${notification.itemId}`
+    } else if (notification.type === 'inquiry') {
+      window.location.href = `/admin/contacts/${notification.itemId}`
+    } else if (notification.type === 'booking') {
+      window.location.href = `/admin/events/${notification.itemId}`
     }
   }
 
@@ -274,6 +310,8 @@ export function TopBar() {
         return '📋'
       case 'contact':
         return '✉️'
+      case 'booking':
+        return '🎫'
       default:
         return '🔔'
     }
@@ -285,6 +323,8 @@ export function TopBar() {
         return 'bg-blue-50 border-blue-200'
       case 'contact':
         return 'bg-orange-50 border-orange-200'
+      case 'booking':
+        return 'bg-purple-50 border-purple-200'
       default:
         return 'bg-gray-50'
     }
@@ -392,7 +432,7 @@ export function TopBar() {
                 <div>
                   <h3 className="font-semibold text-slate-900">Notifications</h3>
                   <p className="text-xs text-slate-500 mt-0.5">
-                    New inquiries & contact messages
+                    New inquiries, bookings & contact messages
                   </p>
                 </div>
                 {notifications.length > 0 && (
@@ -416,7 +456,7 @@ export function TopBar() {
                     <Bell className="w-10 h-10 text-slate-300 mx-auto mb-2" />
                     <p className="text-sm text-slate-500">No new notifications</p>
                     <p className="text-xs text-slate-400 mt-1">
-                      All inquiries and messages have been reviewed
+                      All inquiries, bookings and messages have been reviewed
                     </p>
                   </div>
                 ) : (
@@ -450,7 +490,7 @@ export function TopBar() {
                             <p className="text-xs text-slate-600 mb-2">
                               {notification.message}
                             </p>
-                            <div className="flex items-center gap-2 text-xs">
+                            <div className="flex items-center gap-2 text-xs flex-wrap">
                               <span className="text-slate-500">
                                 📧 {notification.email}
                               </span>
@@ -458,6 +498,18 @@ export function TopBar() {
                               <span className="text-slate-500">
                                 📞 {notification.phone}
                               </span>
+                              {notification.type === 'booking' && (
+                                <>
+                                  <span className="text-slate-300">•</span>
+                                  <span className="text-purple-600 font-medium">
+                                    🎫 {notification.tickets} tickets
+                                  </span>
+                                  <span className="text-slate-300">•</span>
+                                  <span className="text-green-600 font-medium">
+                                    ₹{notification.totalAmount?.toLocaleString() || 0}
+                                  </span>
+                                </>
+                              )}
                             </div>
                             {notification.details && (
                               <div className="mt-1">
@@ -471,6 +523,8 @@ export function TopBar() {
                                 <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
                                   notification.type === 'contact' 
                                     ? 'bg-orange-100 text-orange-800'
+                                    : notification.type === 'booking'
+                                    ? 'bg-purple-100 text-purple-800'
                                     : 'bg-blue-100 text-blue-800'
                                 }`}>
                                   New
@@ -485,7 +539,7 @@ export function TopBar() {
                 )}
               </div>
               
-              <div className="p-3 border-t border-slate-200 bg-slate-50 flex gap-2">
+              <div className="p-3 border-t border-slate-200 bg-slate-50 flex gap-2 flex-wrap">
                 <a
                   href="/admin/inquiries"
                   className="flex-1 text-center text-sm text-blue-600 hover:text-blue-700 font-medium"
@@ -495,7 +549,7 @@ export function TopBar() {
                     window.location.href = '/admin/inquiries'
                   }}
                 >
-                  View all inquiries →
+                  View inquiries →
                 </a>
                 <a
                   href="/admin/contact"
@@ -506,7 +560,18 @@ export function TopBar() {
                     window.location.href = '/admin/contact'
                   }}
                 >
-                  View all messages →
+                  View messages →
+                </a>
+                <a
+                  href="/admin/bookings"
+                  className="flex-1 text-center text-sm text-purple-600 hover:text-purple-700 font-medium"
+                  onClick={(e) => {
+                    e.preventDefault()
+                    setShowNotifications(false)
+                    window.location.href = '/admin/bookings'
+                  }}
+                >
+                  View bookings →
                 </a>
               </div>
             </div>

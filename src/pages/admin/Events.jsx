@@ -7,6 +7,7 @@ import EnquiriesManager from "../../components/events/EnquiriesManager";
 import BookingsManager from "../../components/events/BookingsManager";
 import PastEventsManager from "../../components/events/PastEventsManager";
 import GalleryManager from "../../components/events/GalleryManager";
+import PastGalleryManager from "../../components/events/PastGalleryManager";
 import { useAuthStore } from "../../stores/authStore";
 
 const API_BASE_URL = import.meta.env.VITE_API_URL;
@@ -21,12 +22,15 @@ export default function Events() {
   const [editingEvent, setEditingEvent] = useState(null);
   const [filterCategory, setFilterCategory] = useState("all");
   const [loading, setLoading] = useState(false);
+  const [initialLoad, setInitialLoad] = useState(true);
   
   const { token } = useAuthStore();
 
   useEffect(() => {
-    loadData();
-  }, []);
+    if (token) {
+      loadData();
+    }
+  }, [token]);
 
   const getAuthHeaders = () => ({
     'Content-Type': 'application/json',
@@ -34,15 +38,24 @@ export default function Events() {
   });
 
   const loadData = async () => {
+    if (!token) {
+      console.log("⛔ No token available, skipping data load");
+      return;
+    }
+
     setLoading(true);
+    console.log("🔄 Loading data...");
+    
     try {
       // Fetch categories
       const categoriesRes = await fetch(`${API_BASE_URL}/event-categories`, {
         headers: getAuthHeaders()
       });
       const categoriesData = await categoriesRes.json();
+      
       if (categoriesData.success) {
         setCategories(categoriesData.data);
+        console.log("✅ Categories loaded:", categoriesData.data.length);
       }
 
       // Fetch events
@@ -50,29 +63,41 @@ export default function Events() {
         headers: getAuthHeaders()
       });
       const eventsData = await eventsRes.json();
+      
       if (eventsData.success) {
         setEvents(eventsData.data);
+        console.log("✅ Events loaded:", eventsData.data.length);
       }
 
-      // Fetch enquiries (if you have this endpoint)
+      // Fetch enquiries
       const enquiriesRes = await fetch(`${API_BASE_URL}/event-enquiries`, {
         headers: getAuthHeaders()
       });
       const enquiriesData = await enquiriesRes.json();
       if (enquiriesData.success) {
         setEnquiries(enquiriesData.data);
+        console.log("✅ Enquiries loaded:", enquiriesData.data.length);
       }
 
-      // Fetch bookings (if you have this endpoint)
-      const bookingsRes = await fetch(`${API_BASE_URL}/event-bookings`, {
+      // Fetch bookings
+      const bookingsRes = await fetch(`${API_BASE_URL}/bookings/admin/all`, {
         headers: getAuthHeaders()
       });
       const bookingsData = await bookingsRes.json();
       if (bookingsData.success) {
         setBookings(bookingsData.data);
+        console.log("✅ Bookings loaded:", bookingsData.data.length);
+        console.log("📊 Booking statuses:", bookingsData.data.map(b => ({ 
+          paymentStatus: b.paymentStatus, 
+          bookingStatus: b.bookingStatus 
+        })));
+      } else {
+        console.log("⚠️ Bookings API response:", bookingsData);
       }
+
+      setInitialLoad(false);
     } catch (error) {
-      console.error('Error loading data:', error);
+      console.error('❌ Error loading data:', error);
     } finally {
       setLoading(false);
     }
@@ -80,35 +105,39 @@ export default function Events() {
 
   const handleSaveEvent = async (eventData) => {
     setLoading(true);
+    
     try {
       let response;
+      const headers = {
+        'Authorization': `Bearer ${token}`
+      };
+
       if (editingEvent) {
-        // Update existing event
         response = await fetch(`${API_BASE_URL}/events/${editingEvent._id}`, {
           method: 'PUT',
-          headers: getAuthHeaders(),
-          body: JSON.stringify(eventData)
+          headers: headers,
+          body: eventData
         });
       } else {
-        // Create new event
         response = await fetch(`${API_BASE_URL}/events`, {
           method: 'POST',
-          headers: getAuthHeaders(),
-          body: JSON.stringify(eventData)
+          headers: headers,
+          body: eventData
         });
       }
 
       const data = await response.json();
       
       if (data.success) {
-        await loadData(); // Reload all data
+        await loadData();
         setShowEventForm(false);
         setEditingEvent(null);
+        alert(editingEvent ? "Event updated successfully!" : "Event created successfully!");
       } else {
         alert(data.message || 'Failed to save event');
       }
     } catch (error) {
-      console.error('Error saving event:', error);
+      console.error('❌ Error saving event:', error);
       alert('Error saving event. Please try again.');
     } finally {
       setLoading(false);
@@ -119,6 +148,7 @@ export default function Events() {
     if (!window.confirm("Are you sure you want to delete this event?")) return;
     
     setLoading(true);
+    
     try {
       const response = await fetch(`${API_BASE_URL}/events/${eventId}`, {
         method: 'DELETE',
@@ -128,12 +158,13 @@ export default function Events() {
       const data = await response.json();
       
       if (data.success) {
-        await loadData(); // Reload all data
+        await loadData();
+        alert("Event deleted successfully!");
       } else {
         alert(data.message || 'Failed to delete event');
       }
     } catch (error) {
-      console.error('Error deleting event:', error);
+      console.error('❌ Error deleting event:', error);
       alert('Error deleting event. Please try again.');
     } finally {
       setLoading(false);
@@ -141,12 +172,12 @@ export default function Events() {
   };
 
   const handleEditEvent = (event) => {
+    console.log("✏️ Opening Edit Form for event:", event.title);
     setEditingEvent(event);
     setShowEventForm(true);
   };
 
-  const handleCategoriesUpdate = async (updatedCategories) => {
-    // This will be handled in CategoryManager component
+  const handleCategoriesUpdate = async () => {
     await loadData();
   };
 
@@ -158,28 +189,51 @@ export default function Events() {
     setBookings(updatedBookings);
   };
 
+  // Get active categories
+  const activeCategories = categories.filter(cat => cat.status === "active");
+  const availableCategories = activeCategories.length > 0 ? activeCategories : categories;
+
+  // Filter events (exclude past events from main list)
   const filteredEvents = filterCategory === "all" 
     ? events.filter(ev => ev.status !== "past")
     : events.filter(ev => ev.categorySlug === filterCategory && ev.status !== "past");
 
-  const activeCategories = categories.filter(cat => cat.status === "active");
+  // Count pending bookings for notification badge
+  const pendingBookingsCount = bookings.filter(bk => 
+    bk.paymentStatus === "pending" || bk.bookingStatus === "pending"
+  ).length;
 
+  // Count total bookings for notification badge
+  const totalBookingsCount = bookings.length;
+
+  // Count unread enquiries for notification badge
+  const unreadEnquiriesCount = enquiries.filter(enq => enq.status === "unread").length;
+
+  // Debug logging for counts
+  console.log("📊 Booking counts:", {
+    total: totalBookingsCount,
+    pending: pendingBookingsCount,
+    allBookings: bookings
+  });
+
+  // Tabs configuration
   const tabs = [
     { id: "events", name: "Events", icon: "fa-calendar-alt", count: events.filter(ev => ev.status !== "past").length },
-    { id: "categories", name: "Categories", icon: "fa-tags", count: categories.length }, 
-    { id: "enquiries", name: "Enquiries", icon: "fa-envelope", count: enquiries.filter(enq => enq.status === "unread").length },
-    { id: "bookings", name: "Bookings", icon: "fa-credit-card", count: bookings.filter(bk => bk.status === "Pending").length },
+    { id: "categories", name: "Categories", icon: "fa-tags", count: categories.length },
+    { id: "enquiries", name: "Enquiries", icon: "fa-envelope", count: unreadEnquiriesCount },
+    { id: "bookings", name: "Bookings", icon: "fa-credit-card", count: pendingBookingsCount > 0 ? pendingBookingsCount : totalBookingsCount },
     { id: "past", name: "Past Events", icon: "fa-archive", count: events.filter(ev => ev.status === "past").length },
-    { id: "gallery", name: "Gallery", icon: "fa-images", count: 0 } // Count will be updated by GalleryManager
+    { id: "pastgallery", name: "Past Gallery", icon: "fa-images", count: 0 },
+    { id: "gallery", name: "Gallery", icon: "fa-images", count: 0 }
   ];
 
-  if (loading) {
+  if (loading && initialLoad) {
     return (
       <MainLayout>
         <div className="flex justify-center items-center h-64">
           <div className="text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-600 mx-auto"></div>
-            <p className="mt-4 text-gray-600">Loading...</p>
+            <p className="mt-4 text-gray-600">Loading events...</p>
           </div>
         </div>
       </MainLayout>
@@ -236,6 +290,11 @@ export default function Events() {
               </div>
               <button
                 onClick={() => {
+                  if (availableCategories.length === 0) {
+                    alert("⚠️ Please create at least one category first.");
+                    setActiveTab("categories");
+                    return;
+                  }
                   setEditingEvent(null);
                   setShowEventForm(true);
                 }}
@@ -247,7 +306,7 @@ export default function Events() {
             </div>
 
             {/* Category Filter */}
-            {activeCategories.length > 0 && (
+            {availableCategories.length > 0 && (
               <div className="flex gap-2 flex-wrap items-center">
                 <span className="text-sm text-gray-600 mr-2">Filter by:</span>
                 <button
@@ -260,7 +319,7 @@ export default function Events() {
                 >
                   All Events
                 </button>
-                {activeCategories.map(category => (
+                {availableCategories.map(category => (
                   <button
                     key={category.slug}
                     onClick={() => setFilterCategory(category.slug)}
@@ -282,18 +341,6 @@ export default function Events() {
               onEdit={handleEditEvent}
               onDelete={handleDeleteEvent}
             />
-
-            {showEventForm && (
-              <EventForm
-                event={editingEvent}
-                categories={activeCategories}
-                onSave={handleSaveEvent}
-                onClose={() => {
-                  setShowEventForm(false);
-                  setEditingEvent(null);
-                }}
-              />
-            )}
           </div>
         )}
 
@@ -319,19 +366,31 @@ export default function Events() {
         {/* Bookings Tab Content */}
         {activeTab === "bookings" && (
           <BookingsManager
-            bookings={bookings}
             events={events}
+            token={token}   
             onUpdate={handleBookingsUpdate}
           />
         )}
 
-        {/* Past Events Tab Content */}
+        {/* Past Events Tab */}
         {activeTab === "past" && (
           <PastEventsManager
             events={events}
             enquiries={enquiries}
             bookings={bookings}
             categories={categories}
+            onEdit={handleEditEvent}
+            onDelete={handleDeleteEvent}
+            onClose={() => setShowEventForm(false)}
+          />
+        )}
+
+        {/* Past Gallery Tab */}
+        {activeTab === "pastgallery" && (
+          <PastGalleryManager
+            events={events}
+            token={token}
+            onUpdate={loadData}
           />
         )}
 
@@ -341,6 +400,20 @@ export default function Events() {
             events={events}
             token={token}
             onUpdate={loadData}
+          />
+        )}
+
+        {/* Event Form - Rendered outside tab condition */}
+        {showEventForm && (
+          <EventForm
+            event={editingEvent}
+            categories={availableCategories}
+            onSave={handleSaveEvent}
+            onClose={() => {
+              console.log("❌ Event form closed");
+              setShowEventForm(false);
+              setEditingEvent(null);
+            }}
           />
         )}
       </div>
