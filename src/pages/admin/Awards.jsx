@@ -1,12 +1,30 @@
+// src/pages/admin/Awards.jsx (Updated)
+
 import { MainLayout } from "../../layout/MainLayout";
 import { useState, useEffect } from "react";
-import { Trophy, Plus, Search, Edit2, Trash2, Eye, ChevronLeft, ChevronRight, Users, DollarSign } from 'lucide-react';
+import { 
+  Trophy, 
+  Plus, 
+  Search, 
+  Edit2, 
+  Trash2, 
+  Eye, 
+  ChevronLeft, 
+  ChevronRight, 
+  Users, 
+  DollarSign,
+  BarChart3,
+  Calendar,
+  Award,
+  TrendingUp
+} from 'lucide-react';
 import awardAPI from "../../lib/awrdapi";
 
 // Import components
 import AwardsList from "../../components/awards/AwardsList";
 import AddAwardModal from "../../components/awards/AddAwardModal";
 import NominationDashboard from "../../components/awards/NominationDashboard";
+import CountingStatsManager from "../../components/awards/CountingStatsManager";
 
 export default function Awards() {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -15,7 +33,12 @@ export default function Awards() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [activeTab, setActiveTab] = useState("awards");
-  const [stats, setStats] = useState({ totalAwards: 0, activeAwards: 0, totalNominations: 0, totalRevenue: 0 });
+  const [stats, setStats] = useState({ 
+    totalAwards: 0, 
+    activeAwards: 0, 
+    totalNominations: 0, 
+    totalRevenue: 0 
+  });
 
   // Fetch stats for dashboard
   useEffect(() => {
@@ -65,6 +88,13 @@ export default function Awards() {
     setIsModalOpen(true);
   };
 
+  // Tab configuration
+  const tabs = [
+    { id: "awards", name: "Awards Categories", icon: Trophy },
+    { id: "nominations", name: "Nominations & Payments", icon: Users },
+    { id: "counting-stats", name: "Counting Statistics", icon: BarChart3 }
+  ];
+
   return (
     <MainLayout>
       <div className="p-8">
@@ -74,41 +104,36 @@ export default function Awards() {
             <Trophy className="w-8 h-8 text-red-600" />
             <h1 className="text-3xl font-bold text-gray-900">Awards Management</h1>
           </div>
-          <p className="text-gray-600 mt-1">Manage award categories, view nominations, and track payments</p>
+          <p className="text-gray-600 mt-1">Manage award categories, view nominations, and track counting statistics</p>
         </div>
 
         {/* Tabs */}
         <div className="border-b mb-6">
-          <div className="flex gap-6">
-            <button
-              onClick={() => setActiveTab("awards")}
-              className={`pb-3 px-2 font-medium transition ${
-                activeTab === "awards"
-                  ? "text-red-600 border-b-2 border-red-600"
-                  : "text-gray-500 hover:text-gray-700"
-              }`}
-            >
-              <Trophy className="w-4 h-4 inline mr-2" />
-              Awards Categories
-            </button>
-            <button
-              onClick={() => setActiveTab("nominations")}
-              className={`pb-3 px-2 font-medium transition ${
-                activeTab === "nominations"
-                  ? "text-red-600 border-b-2 border-red-600"
-                  : "text-gray-500 hover:text-gray-700"
-              }`}
-            >
-              <Users className="w-4 h-4 inline mr-2" />
-              Nominations & Payments
-            </button>
+          <div className="flex gap-6 overflow-x-auto">
+            {tabs.map((tab) => {
+              const Icon = tab.icon;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`pb-3 px-2 font-medium transition whitespace-nowrap flex items-center gap-2 ${
+                    activeTab === tab.id
+                      ? "text-red-600 border-b-2 border-red-600"
+                      : "text-gray-500 hover:text-gray-700"
+                  }`}
+                >
+                  <Icon className="w-4 h-4" />
+                  {tab.name}
+                </button>
+              );
+            })}
           </div>
         </div>
 
         {/* Awards Tab Content */}
         {activeTab === "awards" && (
           <>
-            {/* Stats Cards - Now with real data */}
+            {/* Stats Cards */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
               <div className="bg-white rounded-xl shadow-sm border p-6">
                 <div className="flex items-center justify-between">
@@ -201,6 +226,11 @@ export default function Awards() {
         {/* Nominations Tab Content */}
         {activeTab === "nominations" && (
           <NominationDashboard />
+        )}
+
+        {/* Counting Statistics Tab Content */}
+        {activeTab === "counting-stats" && (
+          <CountingStatsManager />
         )}
 
         {/* Add/Edit Award Modal */}
