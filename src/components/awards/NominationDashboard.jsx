@@ -26,11 +26,37 @@ import {
   Building2,
   User,
   MessageSquare,
-  FileText
+  FileText,
+  Image as ImageIcon,
+  Printer,
+  FileDown
 } from 'lucide-react';
 import { useAuthStore } from '../../stores/authStore';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL;
+
+// Helper to convert an image URL to a Base64 string safely for jsPDF
+const convertImgToBase64 = (url) => {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous'; // Prevents CORS blocks
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = img.width;
+      canvas.height = img.height;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0);
+      resolve(canvas.toDataURL('image/jpeg'));
+    };
+    img.onerror = (error) => {
+      console.warn("Failed to convert image for PDF:", error);
+      resolve(null); // Resolves null so the PDF still downloads if the image fails
+    };
+    img.src = url;
+  });
+};
 
 export default function NominationDashboard() {
   const [nominations, setNominations] = useState([]);
@@ -42,6 +68,7 @@ export default function NominationDashboard() {
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedNomination, setSelectedNomination] = useState(null);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [imageLoading, setImageLoading] = useState({});
   const [stats, setStats] = useState({
     total: 0,
     pendingPayment: 0,
@@ -52,6 +79,17 @@ export default function NominationDashboard() {
   
   const { token } = useAuthStore();
   const itemsPerPage = 10;
+
+  // Helper to build full image URL
+  const getImageUrl = (nomineeImage) => {
+    if (!nomineeImage) return null;
+    if (nomineeImage.startsWith('http://') || nomineeImage.startsWith('https://')) {
+      return nomineeImage;
+    }
+    const serverRoot = API_BASE_URL.replace(/\/api$/, '');
+    const cleanPath = nomineeImage.startsWith('/') ? nomineeImage : `/${nomineeImage}`;
+    return `${serverRoot}${cleanPath}`;
+  };
 
   // Fetch nominations from API
   useEffect(() => {
@@ -78,7 +116,6 @@ export default function NominationDashboard() {
   const fetchNominations = async () => {
     setLoading(true);
     try {
-      // ✅ Use the Nominations API endpoint
       const response = await fetch(`${API_BASE_URL}/nominations?limit=1000`, {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -104,7 +141,9 @@ export default function NominationDashboard() {
           nomineePhone: nom.nomineePhone || 'N/A',
           nomineeCompany: nom.nomineeCompany || 'N/A',
           nomineeDesignation: nom.nomineeDesignation || 'N/A',
-          // ✅ NEW FIELDS - Personal Details
+          // Nominee Image
+          nomineeImage: nom.nomineeImage || null,
+          // Address Fields
           address: nom.address || 'N/A',
           city: nom.city || 'N/A',
           state: nom.state || 'N/A',
@@ -176,9 +215,6 @@ export default function NominationDashboard() {
     setStats({ total, pendingPayment, awaitingVerification, confirmed, totalRevenue });
   };
 
-  // Get unique awards for filter
-  const uniqueAwards = [...new Map(nominations.map(n => [n.awardId, n.awardName])).values()];
-  
   // Filter nominations
   const filteredNominations = nominations.filter(nom => {
     const matchesSearch = 
@@ -204,6 +240,223 @@ export default function NominationDashboard() {
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage
   );
+
+  // ============================================
+  // UPDATED ASYNC PDF GENERATION FUNCTION WITH IMAGE
+  // ============================================
+  const generateNominationPDF = async (nomination) => {
+    const doc = new jsPDF('p', 'mm', 'a4');
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    
+    // Add header background
+    doc.setFillColor(245, 245, 245);
+    doc.rect(0, 0, pageWidth, 30, 'F');
+    
+    // Title
+    doc.setFontSize(20);
+    doc.setTextColor(0, 0, 0);
+    doc.setFont('helvetica', 'bold');
+    doc.text('NOMINATION DETAILS', pageWidth / 2, 20, { align: 'center' });
+    
+    // Line separator
+    doc.setDrawColor(200, 200, 200);
+    doc.line(20, 30, pageWidth - 20, 30);
+    
+    let yPos = 40;
+    const leftMargin = 20;
+    const rightMargin = pageWidth - 20;
+    const lineHeight = 8;
+
+    // Fetch and inject the profile image if it exists
+    if (nomination.nomineeImage) {
+      try {
+        const imgUrl = getImageUrl(nomination.nomineeImage);
+        if (imgUrl) {
+          // Await base64 format translation from URL
+          const base64Img = await convertImgToBase64(imgUrl);
+          if (base64Img) {
+            doc.setFontSize(12);
+            doc.setTextColor(100, 100, 100);
+            doc.setFont('helvetica', 'italic');
+            doc.text('Nominee Photo:', leftMargin, yPos);
+            yPos += 5;
+            
+            // Draw image on PDF canvas layout
+            doc.addImage(base64Img, 'JPEG', leftMargin, yPos, 35, 35);
+            yPos += 42; // Move structural Y pointer below the drawn photo boundaries
+          }
+        }
+      } catch (imgError) {
+        console.warn('Image processing handling error for jsPDF:', imgError);
+      }
+    }
+
+    // ─── Personal Details ──────────────────────────────────────────────────
+    doc.setFontSize(14);
+    doc.setTextColor(0, 0, 0);
+    doc.setFont('helvetica', 'bold');
+    doc.text('PERSONAL DETAILS', leftMargin, yPos);
+    yPos += 6;
+    doc.setDrawColor(200, 200, 200);
+    doc.line(leftMargin, yPos, rightMargin, yPos);
+    yPos += 6;
+
+    const details = [
+      ['Nominee Name', nomination.nomineeName || 'N/A'],
+      ['Email Address', nomination.nomineeEmail || 'N/A'],
+      ['Phone Number', nomination.nomineePhone || 'N/A'],
+      ['Company Name', nomination.nomineeCompany || 'N/A'],
+      ['Designation', nomination.nomineeDesignation || 'N/A'],
+    ];
+
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    details.forEach(([label, value]) => {
+      doc.setTextColor(100, 100, 100);
+      doc.text(label + ':', leftMargin, yPos);
+      doc.setTextColor(0, 0, 0);
+      doc.text(value, leftMargin + 50, yPos);
+      yPos += lineHeight;
+    });
+
+    yPos += 5;
+
+    // ─── Address Details ──────────────────────────────────────────────────
+    doc.setFontSize(14);
+    doc.setTextColor(0, 0, 0);
+    doc.setFont('helvetica', 'bold');
+    doc.text('ADDRESS DETAILS', leftMargin, yPos);
+    yPos += 6;
+    doc.setDrawColor(200, 200, 200);
+    doc.line(leftMargin, yPos, rightMargin, yPos);
+    yPos += 6;
+
+    const addressDetails = [
+      ['Address', nomination.address || 'N/A'],
+      ['City', nomination.city || 'N/A'],
+      ['State', nomination.state || 'N/A'],
+      ['Pincode', nomination.pincode || 'N/A'],
+      ['Country', nomination.country || 'N/A'],
+    ];
+
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    addressDetails.forEach(([label, value]) => {
+      doc.setTextColor(100, 100, 100);
+      doc.text(label + ':', leftMargin, yPos);
+      doc.setTextColor(0, 0, 0);
+      doc.text(value, leftMargin + 50, yPos);
+      yPos += lineHeight;
+    });
+
+    yPos += 5;
+
+    // ─── Message ──────────────────────────────────────────────────────────
+    if (nomination.message && nomination.message !== 'No message provided') {
+      doc.setFontSize(14);
+      doc.setTextColor(0, 0, 0);
+      doc.setFont('helvetica', 'bold');
+      doc.text('MESSAGE', leftMargin, yPos);
+      yPos += 6;
+      doc.setDrawColor(200, 200, 200);
+      doc.line(leftMargin, yPos, rightMargin, yPos);
+      yPos += 6;
+
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'italic');
+      doc.setTextColor(60, 60, 60);
+      const messageLines = doc.splitTextToSize(nomination.message, pageWidth - 40);
+      doc.text(messageLines, leftMargin, yPos);
+      yPos += messageLines.length * lineHeight + 5;
+    }
+
+    // ─── Nomination Details ──────────────────────────────────────────────
+    doc.setFontSize(14);
+    doc.setTextColor(0, 0, 0);
+    doc.setFont('helvetica', 'bold');
+    doc.text('NOMINATION DETAILS', leftMargin, yPos);
+    yPos += 6;
+    doc.setDrawColor(200, 200, 200);
+    doc.line(leftMargin, yPos, rightMargin, yPos);
+    yPos += 6;
+
+    const nomDetails = [
+      ['Award Category', nomination.awardName || 'N/A'],
+      ['Amount Paid', `₹${nomination.paymentAmount || 0}`],
+      ['Payment Status', (nomination.paymentStatus || 'PENDING').toUpperCase()],
+      ['Nomination Status', (nomination.status || 'pending').toUpperCase()],
+      ['Payment ID', nomination.paymentId || 'N/A'],
+      ['Transaction ID', nomination.transactionId || 'N/A'],
+      ['Nomination Date', nomination.nominationDate || 'N/A'],
+      ['Nomination ID', nomination.id || 'N/A'],
+    ];
+
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    nomDetails.forEach(([label, value]) => {
+      doc.setTextColor(100, 100, 100);
+      doc.text(label + ':', leftMargin, yPos);
+      doc.setTextColor(0, 0, 0);
+      doc.text(value, leftMargin + 55, yPos);
+      yPos += lineHeight;
+    });
+
+    yPos += 5;
+
+    // ─── Reason ──────────────────────────────────────────────────────────
+    doc.setFontSize(14);
+    doc.setTextColor(0, 0, 0);
+    doc.setFont('helvetica', 'bold');
+    doc.text('NOMINATION REASON', leftMargin, yPos);
+    yPos += 6;
+    doc.setDrawColor(200, 200, 200);
+    doc.line(leftMargin, yPos, rightMargin, yPos);
+    yPos += 6;
+
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(60, 60, 60);
+    const reasonLines = doc.splitTextToSize(nomination.reason || 'No reason provided', pageWidth - 40);
+    doc.text(reasonLines, leftMargin, yPos);
+    yPos += reasonLines.length * lineHeight + 10;
+
+    // ─── Admin Remarks ──────────────────────────────────────────────────
+    if (nomination.adminRemarks) {
+      doc.setFontSize(14);
+      doc.setTextColor(0, 0, 0);
+      doc.setFont('helvetica', 'bold');
+      doc.text('ADMIN REMARKS', leftMargin, yPos);
+      yPos += 6;
+      doc.setDrawColor(200, 200, 200);
+      doc.line(leftMargin, yPos, rightMargin, yPos);
+      yPos += 6;
+
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'italic');
+      doc.setTextColor(100, 70, 0);
+      const remarkLines = doc.splitTextToSize(nomination.adminRemarks, pageWidth - 40);
+      doc.text(remarkLines, leftMargin, yPos);
+      yPos += remarkLines.length * lineHeight + 5;
+    }
+
+    // ─── Footer ──────────────────────────────────────────────────────────
+    const footerY = pageHeight - 20;
+    doc.setDrawColor(200, 200, 200);
+    doc.line(leftMargin, footerY, rightMargin, footerY);
+    
+    doc.setFontSize(8);
+    doc.setTextColor(150, 150, 150);
+    doc.text(
+      `Generated on ${new Date().toLocaleString()} • Nomination ID: ${nomination.id || 'N/A'}`,
+      pageWidth / 2,
+      footerY + 6,
+      { align: 'center' }
+    );
+
+    // ─── Save PDF ──────────────────────────────────────────────────────────
+    doc.save(`Nomination_${nomination.nomineeName || 'Unknown'}_${nomination.id || 'unknown'}.pdf`);
+  };
 
   // Admin Actions
   const handleConfirmNomination = async (nomination) => {
@@ -330,13 +583,6 @@ export default function NominationDashboard() {
   };
 
   const handleViewDetails = (nomination) => {
-    console.log('📝 View Details Clicked:', nomination);
-    console.log('📝 Address:', nomination.address);
-    console.log('📝 City:', nomination.city);
-    console.log('📝 State:', nomination.state);
-    console.log('📝 Pincode:', nomination.pincode);
-    console.log('📝 Country:', nomination.country);
-    console.log('📝 Message:', nomination.message);
     setSelectedNomination(nomination);
     setShowDetailsModal(true);
   };
@@ -399,6 +645,8 @@ export default function NominationDashboard() {
     window.URL.revokeObjectURL(url);
   };
 
+  const uniqueAwards = [...new Map(nominations.map(n => [n.awardId, n.awardName])).values()];
+
   if (loading) {
     return (
       <div className="bg-white rounded-xl shadow-sm border p-8">
@@ -413,18 +661,20 @@ export default function NominationDashboard() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex justify-between items-center">
+      <div className="flex justify-between items-center flex-wrap gap-4">
         <div>
           <h2 className="text-2xl font-bold text-gray-900">Nomination Management</h2>
           <p className="text-gray-500 text-sm mt-1">View and manage all award nominations, payments, and personal details</p>
         </div>
-        <button 
-          onClick={handleExportCSV}
-          className="bg-gray-100 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-200 transition flex items-center gap-2"
-        >
-          <Download className="w-4 h-4" />
-          Export Report
-        </button>
+        <div className="flex gap-2 flex-wrap">
+          <button 
+            onClick={handleExportCSV}
+            className="bg-gray-100 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-200 transition flex items-center gap-2"
+          >
+            <Download className="w-4 h-4" />
+            Export CSV
+          </button>
+        </div>
       </div>
 
       {/* Stats Cards */}
@@ -511,8 +761,8 @@ export default function NominationDashboard() {
             className="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
           >
             <option value="all">All Awards</option>
-            {uniqueAwards.map(award => (
-              <option key={award} value={award}>{award}</option>
+            {awards.map(award => (
+              <option key={award._id} value={award._id}>{award.name}</option>
             ))}
           </select>
         </div>
@@ -526,6 +776,7 @@ export default function NominationDashboard() {
               <tr>
                 <th className="text-left p-4 font-semibold text-gray-700 text-sm">ID</th>
                 <th className="text-left p-4 font-semibold text-gray-700 text-sm">Nominee</th>
+                <th className="text-left p-4 font-semibold text-gray-700 text-sm">Image</th>
                 <th className="text-left p-4 font-semibold text-gray-700 text-sm">Award</th>
                 <th className="text-left p-4 font-semibold text-gray-700 text-sm">Company</th>
                 <th className="text-left p-4 font-semibold text-gray-700 text-sm">Address</th>
@@ -551,6 +802,23 @@ export default function NominationDashboard() {
                       <p className="text-xs text-gray-500">{nom.nomineeEmail || 'N/A'}</p>
                       <p className="text-xs text-gray-400">{nom.nomineePhone || 'N/A'}</p>
                     </div>
+                  </td>
+                  <td className="p-4">
+                    {nom.nomineeImage ? (
+                      <img 
+                        src={getImageUrl(nom.nomineeImage)} 
+                        alt={nom.nomineeName}
+                        className="w-10 h-10 rounded-full object-cover border border-gray-200"
+                        onError={(e) => {
+                          e.target.onerror = null;
+                          e.target.src = '/default-avatar.png';
+                        }}
+                      />
+                    ) : (
+                      <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center border border-gray-200">
+                        <User className="w-5 h-5 text-gray-400" />
+                      </div>
+                    )}
                   </td>
                   <td className="p-4">
                     <div className="flex items-center gap-2">
@@ -672,14 +940,57 @@ export default function NominationDashboard() {
           <div className="bg-white rounded-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
             <div className="sticky top-0 bg-white border-b p-5 flex justify-between items-center">
               <h3 className="text-xl font-bold text-gray-900">Nomination Details</h3>
-              <button
-                onClick={() => setShowDetailsModal(false)}
-                className="p-1 hover:bg-gray-100 rounded-lg"
-              >
-                <XCircle className="w-5 h-5 text-gray-500" />
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => generateNominationPDF(selectedNomination)}
+                  className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition flex items-center gap-2"
+                  title="Download PDF"
+                >
+                  <FileDown className="w-5 h-5" />
+                  <span className="text-sm font-medium">PDF</span>
+                </button>
+                <button
+                  onClick={() => setShowDetailsModal(false)}
+                  className="p-1 hover:bg-gray-100 rounded-lg"
+                >
+                  <XCircle className="w-5 h-5 text-gray-500" />
+                </button>
+              </div>
             </div>
             <div className="p-6 space-y-6">
+              {/* Profile Image Section */}
+              <div className="flex items-start gap-6 bg-gray-50 p-4 rounded-lg">
+                <div className="flex-shrink-0">
+                  {selectedNomination.nomineeImage ? (
+                    <img 
+                      src={getImageUrl(selectedNomination.nomineeImage)} 
+                      alt={selectedNomination.nomineeName}
+                      className="w-24 h-24 rounded-full object-cover border-2 border-gray-300"
+                      onError={(e) => {
+                        e.target.onerror = null;
+                        e.target.src = '/default-avatar.png';
+                      }}
+                    />
+                  ) : (
+                    <div className="w-24 h-24 rounded-full bg-gray-200 flex items-center justify-center border-2 border-gray-300">
+                      <User className="w-10 h-10 text-gray-400" />
+                    </div>
+                  )}
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-xl font-bold text-gray-900">{selectedNomination.nomineeName}</h3>
+                  <p className="text-gray-500">{selectedNomination.nomineeEmail}</p>
+                  <p className="text-gray-500 text-sm">{selectedNomination.nomineePhone}</p>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {getStatusBadge(selectedNomination)}
+                    <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700">
+                      <CreditCard className="w-3 h-3" />
+                      {selectedNomination.paymentStatus?.toUpperCase() || 'PENDING'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
               {/* Personal Details Section */}
               <div>
                 <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
@@ -827,6 +1138,14 @@ export default function NominationDashboard() {
                 className="px-4 py-2 border rounded-lg hover:bg-white transition"
               >
                 Close
+              </button>
+              
+              <button
+                onClick={() => generateNominationPDF(selectedNomination)}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition flex items-center gap-2"
+              >
+                <FileDown className="w-4 h-4" />
+                Download PDF
               </button>
               
               {selectedNomination.paymentStatus === "completed" && selectedNomination.status === "pending" && (

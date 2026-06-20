@@ -1,4 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
+import jsPDF from "jspdf";
+import "jspdf-autotable";
 
 const API_BASE_URL = import.meta.env.VITE_API_URL;
 
@@ -82,7 +84,6 @@ export default function BookingsManager({ events, token, onUpdate }) {
 
   // ─── Helper: event title by eventId ───────────────────────────────────────
   const getEventTitle = (eventId) => {
-    // eventId may already be populated by populate() in controller
     if (eventId && typeof eventId === "object") return eventId.title || "—";
     const event = events.find(
       (ev) => ev._id === eventId || ev.id === eventId
@@ -90,9 +91,13 @@ export default function BookingsManager({ events, token, onUpdate }) {
     return event ? event.title : "Unknown Event";
   };
 
+  // ─── Get event by ID ──────────────────────────────────────────────────────
+  const getEvent = (eventId) => {
+    if (eventId && typeof eventId === "object") return eventId;
+    return events.find((ev) => ev._id === eventId || ev.id === eventId);
+  };
+
   // ─── Status badge colours ──────────────────────────────────────────────────
-  // Backend paymentStatus: pending | completed | failed | refunded
-  // Backend bookingStatus: pending | confirmed | cancelled | completed
   const paymentBadge = (status) => {
     const map = {
       pending: "bg-yellow-100 text-yellow-800",
@@ -113,7 +118,245 @@ export default function BookingsManager({ events, token, onUpdate }) {
     return map[status] || "bg-gray-100 text-gray-800";
   };
 
-  // ─── Stats (from current page data; full counts only if server sends them) ─
+  // ─── Generate PDF for Booking ─────────────────────────────────────────────
+  const generateBookingPDF = (booking) => {
+    const event = getEvent(booking.eventId);
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const margin = 20;
+    
+    // Colors
+    const primaryColor = [124, 58, 237];
+    const secondaryColor = [243, 244, 246];
+    const textColor = [31, 41, 55];
+    const mutedTextColor = [107, 114, 128];
+
+    const setTextColor = (color) => {
+      doc.setTextColor(color[0], color[1], color[2]);
+    };
+
+    const setFillColor = (color) => {
+      doc.setFillColor(color[0], color[1], color[2]);
+    };
+
+    const drawLine = (y) => {
+      doc.setDrawColor(229, 231, 235);
+      doc.line(margin, y, pageWidth - margin, y);
+    };
+
+    // ─── Header ─────────────────────────────────────────────────────────────
+    doc.setFontSize(24);
+    setTextColor(primaryColor);
+    doc.setFont("helvetica", "bold");
+    doc.text("Event Booking", margin, 30);
+
+    doc.setFontSize(12);
+    setTextColor(mutedTextColor);
+    doc.setFont("helvetica", "normal");
+    doc.text(`Booking #: ${booking.bookingNumber}`, margin, 40);
+
+    const dateStr = booking.createdAt
+      ? new Date(booking.createdAt).toLocaleString("en-IN", {
+          day: "2-digit",
+          month: "short",
+          year: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+        })
+      : "N/A";
+    doc.text(`Date: ${dateStr}`, pageWidth - margin - 60, 40);
+
+    drawLine(48);
+
+    // ─── Customer Details ──────────────────────────────────────────────────
+    let yPos = 58;
+    doc.setFontSize(16);
+    setTextColor(textColor);
+    doc.setFont("helvetica", "bold");
+    doc.text("Customer Details", margin, yPos);
+    yPos += 8;
+
+    setFillColor(secondaryColor);
+    doc.roundedRect(margin, yPos, pageWidth - 2 * margin, 45, 3, 3, "F");
+    
+    doc.setFontSize(12);
+    doc.setFont("helvetica", "normal");
+    let textY = yPos + 8;
+    
+    doc.text(`Name: ${booking.fullName}`, margin + 8, textY);
+    textY += 7;
+    if (booking.companyName) {
+      doc.text(`Company: ${booking.companyName}`, margin + 8, textY);
+      textY += 7;
+    }
+    doc.text(`Email: ${booking.email}`, margin + 8, textY);
+    textY += 7;
+    doc.text(`Phone: ${booking.contactNumber || "N/A"}`, margin + 8, textY);
+    
+    if (booking.address || booking.city || booking.state) {
+      const addressStr = [
+        booking.address,
+        booking.city,
+        booking.state,
+        booking.pincode,
+      ]
+        .filter(Boolean)
+        .join(", ");
+      doc.text(`Address: ${addressStr}`, margin + 120, textY - 14);
+    }
+
+    yPos += 53;
+
+    // ─── Event Details ─────────────────────────────────────────────────────
+    doc.setFontSize(16);
+    setTextColor(textColor);
+    doc.setFont("helvetica", "bold");
+    doc.text("Event Details", margin, yPos);
+    yPos += 8;
+
+    setFillColor(secondaryColor);
+    doc.roundedRect(margin, yPos, pageWidth - 2 * margin, 40, 3, 3, "F");
+    
+    doc.setFontSize(12);
+    doc.setFont("helvetica", "normal");
+    textY = yPos + 8;
+    
+    doc.text(`Event: ${getEventTitle(booking.eventId)}`, margin + 8, textY);
+    textY += 7;
+    doc.text(`Tickets: ${booking.tickets}`, margin + 8, textY);
+    textY += 7;
+    doc.text(`Price per ticket: ₹${(booking.ticketPrice || 0).toLocaleString()}`, margin + 8, textY);
+    textY += 7;
+    doc.text(`Total Amount: ₹${(booking.totalAmount || 0).toLocaleString()}`, margin + 8, textY);
+
+    // Event image
+    const eventImage = booking.eventImage || event?.imageUrl;
+    if (eventImage) {
+      try {
+        doc.setFontSize(10);
+        setTextColor(mutedTextColor);
+        doc.text("Event Image:", pageWidth - margin - 90, yPos + 8);
+        doc.roundedRect(pageWidth - margin - 90, yPos + 12, 70, 20, 2, 2, "S");
+        doc.setFontSize(8);
+        doc.text("Image attached", pageWidth - margin - 55, yPos + 25);
+      } catch (err) {
+        console.log("Could not render image in PDF");
+      }
+    }
+
+    yPos += 48;
+
+    // ─── Booking Image ──────────────────────────────────────────────────────
+    if (booking.bookingImage) {
+      doc.setFontSize(16);
+      setTextColor(textColor);
+      doc.setFont("helvetica", "bold");
+      doc.text("Booking Image", margin, yPos);
+      yPos += 8;
+
+      setFillColor(secondaryColor);
+      doc.roundedRect(margin, yPos, pageWidth - 2 * margin, 30, 3, 3, "F");
+      
+      doc.setFontSize(12);
+      doc.setFont("helvetica", "normal");
+      setTextColor(mutedTextColor);
+      doc.text("Booking image attached", margin + 8, yPos + 18);
+      
+      yPos += 38;
+    }
+
+    // ─── Payment & Status ──────────────────────────────────────────────────
+    doc.setFontSize(16);
+    setTextColor(textColor);
+    doc.setFont("helvetica", "bold");
+    doc.text("Payment & Status", margin, yPos);
+    yPos += 8;
+
+    setFillColor(secondaryColor);
+    doc.roundedRect(margin, yPos, pageWidth - 2 * margin, 35, 3, 3, "F");
+    
+    doc.setFontSize(12);
+    doc.setFont("helvetica", "normal");
+    textY = yPos + 8;
+    
+    const paymentStatusMap = {
+      pending: "Pending",
+      completed: "Completed",
+      failed: "Failed",
+      refunded: "Refunded",
+    };
+    const bookingStatusMap = {
+      pending: "Pending",
+      confirmed: "Confirmed",
+      cancelled: "Cancelled",
+      completed: "Completed",
+    };
+    
+    doc.text(`Payment Status: ${paymentStatusMap[booking.paymentStatus] || booking.paymentStatus}`, margin + 8, textY);
+    textY += 7;
+    doc.text(`Booking Status: ${bookingStatusMap[booking.bookingStatus] || booking.bookingStatus}`, margin + 8, textY);
+    textY += 7;
+    
+    if (booking.paymentCompletedAt) {
+      const paidDate = new Date(booking.paymentCompletedAt).toLocaleString("en-IN", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+      doc.text(`Paid On: ${paidDate}`, margin + 8, textY);
+      textY += 7;
+    }
+
+    if (booking.razorpayPaymentId) {
+      doc.text(`Payment ID: ${booking.razorpayPaymentId}`, margin + 8, textY);
+    }
+
+    yPos += 43;
+
+    // ─── Message ────────────────────────────────────────────────────────────
+    if (booking.message) {
+      doc.setFontSize(14);
+      setTextColor(textColor);
+      doc.setFont("helvetica", "bold");
+      doc.text("Message from Customer", margin, yPos);
+      yPos += 6;
+
+      setFillColor(secondaryColor);
+      const messageLines = doc.splitTextToSize(booking.message, pageWidth - 2 * margin - 16);
+      const messageHeight = Math.max(20, messageLines.length * 6 + 16);
+      doc.roundedRect(margin, yPos, pageWidth - 2 * margin, messageHeight, 3, 3, "F");
+      
+      doc.setFontSize(11);
+      doc.setFont("helvetica", "normal");
+      setTextColor(textColor);
+      doc.text(messageLines, margin + 8, yPos + 8);
+      
+      yPos += messageHeight + 10;
+    }
+
+    // ─── Footer ─────────────────────────────────────────────────────────────
+    const footerY = doc.internal.pageSize.getHeight() - 20;
+    drawLine(footerY);
+    doc.setFontSize(10);
+    setTextColor(mutedTextColor);
+    doc.setFont("helvetica", "italic");
+    doc.text(
+      "This is a system-generated booking confirmation. Please keep this for your records.",
+      margin,
+      footerY + 8
+    );
+    doc.text(
+      `Generated on: ${new Date().toLocaleString("en-IN")}`,
+      pageWidth - margin - 70,
+      footerY + 8
+    );
+
+    doc.save(`Booking_${booking.bookingNumber}.pdf`);
+  };
+
+  // ─── Stats ────────────────────────────────────────────────────────────────
   const totalRevenue = bookings
     .filter((bk) => bk.paymentStatus === "completed")
     .reduce((sum, bk) => sum + (bk.totalAmount || 0), 0);
@@ -307,6 +550,9 @@ export default function BookingsManager({ events, token, onUpdate }) {
                       Booking
                     </th>
                     <th className="text-left px-6 py-4 text-sm font-semibold text-gray-700">
+                      Image
+                    </th>
+                    <th className="text-left px-6 py-4 text-sm font-semibold text-gray-700">
                       Actions
                     </th>
                   </tr>
@@ -373,8 +619,30 @@ export default function BookingsManager({ events, token, onUpdate }) {
                         </span>
                       </td>
                       <td className="px-6 py-4">
+                        {booking.bookingImage ? (
+                          <img 
+                            src={booking.bookingImage} 
+                            alt="Booking" 
+                            className="w-10 h-10 rounded-lg object-cover border border-gray-200"
+                            onError={(e) => {
+                              e.target.style.display = 'none';
+                            }}
+                          />
+                        ) : booking.eventImage ? (
+                          <img 
+                            src={booking.eventImage} 
+                            alt="Event" 
+                            className="w-10 h-10 rounded-lg object-cover border border-gray-200"
+                            onError={(e) => {
+                              e.target.style.display = 'none';
+                            }}
+                          />
+                        ) : (
+                          <span className="text-xs text-gray-400">No image</span>
+                        )}
+                      </td>
+                      <td className="px-6 py-4">
                         <div className="flex gap-2">
-                          {/* View Details */}
                           <button
                             onClick={() => setSelectedBooking(booking)}
                             className="text-blue-600 hover:text-blue-800"
@@ -382,7 +650,13 @@ export default function BookingsManager({ events, token, onUpdate }) {
                           >
                             <i className="fas fa-eye text-lg"></i>
                           </button>
-                          {/* Cancel (if not already cancelled/refunded) */}
+                          <button
+                            onClick={() => generateBookingPDF(booking)}
+                            className="text-green-600 hover:text-green-800"
+                            title="Download PDF"
+                          >
+                            <i className="fas fa-file-pdf text-lg"></i>
+                          </button>
                           {booking.bookingStatus !== "cancelled" &&
                             booking.bookingStatus !== "completed" && (
                               <button
@@ -448,7 +722,6 @@ export default function BookingsManager({ events, token, onUpdate }) {
               </div>
 
               <div className="space-y-3">
-                {/* Booking Info */}
                 <div className="bg-gray-50 p-3 rounded-lg">
                   <p className="text-xs font-semibold text-gray-500 uppercase mb-1">
                     Booking Information
@@ -474,7 +747,6 @@ export default function BookingsManager({ events, token, onUpdate }) {
                   )}
                 </div>
 
-                {/* Customer Details */}
                 <div className="bg-gray-50 p-3 rounded-lg">
                   <p className="text-xs font-semibold text-gray-500 uppercase mb-1">
                     Customer Details
@@ -503,7 +775,6 @@ export default function BookingsManager({ events, token, onUpdate }) {
                   </p>
                 </div>
 
-                {/* Event Details */}
                 <div className="bg-gray-50 p-3 rounded-lg">
                   <p className="text-xs font-semibold text-gray-500 uppercase mb-1">
                     Event Details
@@ -524,7 +795,43 @@ export default function BookingsManager({ events, token, onUpdate }) {
                   </p>
                 </div>
 
-                {/* Status */}
+                {/* Images */}
+                {(selectedBooking.bookingImage || selectedBooking.eventImage) && (
+                  <div className="bg-gray-50 p-3 rounded-lg">
+                    <p className="text-xs font-semibold text-gray-500 uppercase mb-2">
+                      Images
+                    </p>
+                    <div className="flex gap-3 flex-wrap">
+                      {selectedBooking.bookingImage && (
+                        <div>
+                          <p className="text-xs text-gray-400 mb-1">Booking Image</p>
+                          <img 
+                            src={selectedBooking.bookingImage} 
+                            alt="Booking" 
+                            className="w-24 h-24 rounded-lg object-cover border border-gray-200"
+                            onError={(e) => {
+                              e.target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="96" height="96"%3E%3Crect width="96" height="96" fill="%23f3f4f6"/%3E%3Ctext x="48" y="48" text-anchor="middle" dy=".3em" fill="%239ca3af" font-size="10" font-family="sans-serif"%3ENo image%3C/text%3E%3C/svg%3E';
+                            }}
+                          />
+                        </div>
+                      )}
+                      {selectedBooking.eventImage && (
+                        <div>
+                          <p className="text-xs text-gray-400 mb-1">Event Image</p>
+                          <img 
+                            src={selectedBooking.eventImage} 
+                            alt="Event" 
+                            className="w-24 h-24 rounded-lg object-cover border border-gray-200"
+                            onError={(e) => {
+                              e.target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="96" height="96"%3E%3Crect width="96" height="96" fill="%23f3f4f6"/%3E%3Ctext x="48" y="48" text-anchor="middle" dy=".3em" fill="%239ca3af" font-size="10" font-family="sans-serif"%3ENo image%3C/text%3E%3C/svg%3E';
+                            }}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
                 <div className="bg-gray-50 p-3 rounded-lg">
                   <p className="text-xs font-semibold text-gray-500 uppercase mb-2">
                     Status
@@ -561,7 +868,6 @@ export default function BookingsManager({ events, token, onUpdate }) {
                   )}
                 </div>
 
-                {/* Message */}
                 {selectedBooking.message && (
                   <div className="bg-gray-50 p-3 rounded-lg">
                     <p className="text-xs font-semibold text-gray-500 uppercase mb-1">
@@ -575,6 +881,13 @@ export default function BookingsManager({ events, token, onUpdate }) {
               </div>
 
               <div className="flex gap-3 mt-6">
+                <button
+                  onClick={() => generateBookingPDF(selectedBooking)}
+                  className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center justify-center gap-2"
+                >
+                  <i className="fas fa-file-pdf"></i>
+                  Download PDF
+                </button>
                 {selectedBooking.bookingStatus !== "cancelled" &&
                   selectedBooking.bookingStatus !== "completed" && (
                     <button

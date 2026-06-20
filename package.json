@@ -30,6 +30,8 @@
     "axios": "^1.14.0",
     "class-variance-authority": "^0.7.1",
     "highlight.js": "^11.11.1",
+    "jspdf": "^4.2.1",
+    "jspdf-autotable": "^5.0.8",
     "lowlight": "^3.3.0",
     "lucide-react": "^1.7.0",
     "oms-custom-tinymce": "^1.0.44",
