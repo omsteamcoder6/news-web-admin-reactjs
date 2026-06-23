@@ -1,3 +1,4 @@
+// src/pages/Events.jsx
 import { useState, useEffect } from "react";
 import { MainLayout } from "../../layout/MainLayout";
 import EventList from "../../components/events/EventList";
@@ -8,6 +9,10 @@ import BookingsManager from "../../components/events/BookingsManager";
 import PastEventsManager from "../../components/events/PastEventsManager";
 import GalleryManager from "../../components/events/GalleryManager";
 import PastGalleryManager from "../../components/events/PastGalleryManager";
+// UPDATED IMPORTS - Now using API-connected components
+import UpcomingEventList from "../../components/events/UpcomingEventList";
+import UpcomingEventForm from "../../components/events/UpcomingEventForm";
+import BookingFields from "../../components/events/BookingFields";
 import { useAuthStore } from "../../stores/authStore";
 
 const API_BASE_URL = import.meta.env.VITE_API_URL;
@@ -19,16 +24,21 @@ export default function Events() {
   const [enquiries, setEnquiries] = useState([]);
   const [bookings, setBookings] = useState([]);
   const [showEventForm, setShowEventForm] = useState(false);
+  const [showUpcomingForm, setShowUpcomingForm] = useState(false);
   const [editingEvent, setEditingEvent] = useState(null);
   const [filterCategory, setFilterCategory] = useState("all");
   const [loading, setLoading] = useState(false);
   const [initialLoad, setInitialLoad] = useState(true);
+  
+  // ✅ NEW: State for upcoming events count
+  const [upcomingEventsCount, setUpcomingEventsCount] = useState(0);
   
   const { token } = useAuthStore();
 
   useEffect(() => {
     if (token) {
       loadData();
+      loadUpcomingEventsCount();
     }
   }, [token]);
 
@@ -87,12 +97,6 @@ export default function Events() {
       if (bookingsData.success) {
         setBookings(bookingsData.data);
         console.log("✅ Bookings loaded:", bookingsData.data.length);
-        console.log("📊 Booking statuses:", bookingsData.data.map(b => ({ 
-          paymentStatus: b.paymentStatus, 
-          bookingStatus: b.bookingStatus 
-        })));
-      } else {
-        console.log("⚠️ Bookings API response:", bookingsData);
       }
 
       setInitialLoad(false);
@@ -101,6 +105,26 @@ export default function Events() {
     } finally {
       setLoading(false);
     }
+  };
+
+  // ✅ NEW: Load upcoming events count
+  const loadUpcomingEventsCount = async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/upcoming-events/statistics`, {
+        headers: getAuthHeaders()
+      });
+      const data = await response.json();
+      if (data.success) {
+        setUpcomingEventsCount(data.data.upcoming || 0);
+      }
+    } catch (error) {
+      console.error('❌ Error loading upcoming events count:', error);
+    }
+  };
+
+  // ✅ NEW: Refresh upcoming events count after create/delete
+  const refreshUpcomingCount = () => {
+    loadUpcomingEventsCount();
   };
 
   const handleSaveEvent = async (eventData) => {
@@ -203,25 +227,19 @@ export default function Events() {
     bk.paymentStatus === "pending" || bk.bookingStatus === "pending"
   ).length;
 
-  // Count total bookings for notification badge
   const totalBookingsCount = bookings.length;
 
   // Count unread enquiries for notification badge
   const unreadEnquiriesCount = enquiries.filter(enq => enq.status === "unread").length;
 
-  // Debug logging for counts
-  console.log("📊 Booking counts:", {
-    total: totalBookingsCount,
-    pending: pendingBookingsCount,
-    allBookings: bookings
-  });
-
-  // Tabs configuration
+  // Tabs configuration - UPDATED with counts from API
   const tabs = [
     { id: "events", name: "Events", icon: "fa-calendar-alt", count: events.filter(ev => ev.status !== "past").length },
+    { id: "upcoming", name: "Upcoming Events", icon: "fa-calendar-plus", count: upcomingEventsCount },
     { id: "categories", name: "Categories", icon: "fa-tags", count: categories.length },
     { id: "enquiries", name: "Enquiries", icon: "fa-envelope", count: unreadEnquiriesCount },
     { id: "bookings", name: "Bookings", icon: "fa-credit-card", count: pendingBookingsCount > 0 ? pendingBookingsCount : totalBookingsCount },
+    { id: "bookingfields", name: "Booking Fields", icon: "fa-ticket-alt", count: 0 },
     { id: "past", name: "Past Events", icon: "fa-archive", count: events.filter(ev => ev.status === "past").length },
     { id: "pastgallery", name: "Past Gallery", icon: "fa-images", count: 0 },
     { id: "gallery", name: "Gallery", icon: "fa-images", count: 0 }
@@ -280,7 +298,7 @@ export default function Events() {
           </nav>
         </div>
 
-        {/* Events Tab Content */}
+        {/* Events Tab Content (Existing - Unchanged) */}
         {activeTab === "events" && (
           <div className="space-y-6">
             <div className="flex justify-between items-center flex-wrap gap-4">
@@ -344,7 +362,48 @@ export default function Events() {
           </div>
         )}
 
-        {/* Categories Tab Content */}
+        {/* ✅ UPDATED: Upcoming Events Tab with API Connection */}
+        {activeTab === "upcoming" && (
+          <div className="space-y-6">
+            <div className="flex justify-between items-center flex-wrap gap-4">
+              <div>
+                <h2 className="text-2xl font-semibold text-slate-800">📅 Upcoming Events</h2>
+                <p className="text-slate-500 text-sm mt-1">Manage upcoming events (Connected to backend API)</p>
+              </div>
+              <button
+                onClick={() => setShowUpcomingForm(true)}
+                className="bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition"
+              >
+                <i className="fas fa-plus-circle"></i>
+                Create Upcoming Event
+              </button>
+            </div>
+
+            {/* ✅ UPDATED: Upcoming Event List with API integration */}
+            <UpcomingEventList 
+              token={token}
+              categories={availableCategories}
+              onRefresh={refreshUpcomingCount}
+            />
+
+            {/* ✅ UPDATED: Upcoming Event Form with API integration and Categories */}
+            {showUpcomingForm && (
+              <UpcomingEventForm
+                token={token}
+                categories={availableCategories}  // ✅ PASS CATEGORIES HERE
+                onClose={() => {
+                  setShowUpcomingForm(false);
+                  refreshUpcomingCount();
+                }}
+                onSuccess={() => {
+                  refreshUpcomingCount();
+                }}
+              />
+            )}
+          </div>
+        )}
+
+        {/* Categories Tab Content (Unchanged) */}
         {activeTab === "categories" && (
           <CategoryManager
             categories={categories}
@@ -354,7 +413,7 @@ export default function Events() {
           />
         )}
 
-        {/* Enquiries Tab Content */}
+        {/* Enquiries Tab Content (Unchanged) */}
         {activeTab === "enquiries" && (
           <EnquiriesManager
             enquiries={enquiries}
@@ -363,7 +422,7 @@ export default function Events() {
           />
         )}
 
-        {/* Bookings Tab Content */}
+        {/* Bookings Tab Content (Unchanged) */}
         {activeTab === "bookings" && (
           <BookingsManager
             events={events}
@@ -372,7 +431,17 @@ export default function Events() {
           />
         )}
 
-        {/* Past Events Tab */}
+        {/* Booking Fields Tab */}
+        {activeTab === "bookingfields" && (
+          <div className="space-y-6">
+            <div>
+              <h2 className="text-2xl font-semibold text-slate-800">🎟️ Booking Fields</h2>
+            </div>
+            <BookingFields />
+          </div>
+        )}
+
+        {/* Past Events Tab (Unchanged) */}
         {activeTab === "past" && (
           <PastEventsManager
             events={events}
@@ -385,7 +454,7 @@ export default function Events() {
           />
         )}
 
-        {/* Past Gallery Tab */}
+        {/* Past Gallery Tab (Unchanged) */}
         {activeTab === "pastgallery" && (
           <PastGalleryManager
             events={events}
@@ -394,7 +463,7 @@ export default function Events() {
           />
         )}
 
-        {/* Gallery Tab Content */}
+        {/* Gallery Tab Content (Unchanged) */}
         {activeTab === "gallery" && (
           <GalleryManager
             events={events}
@@ -403,7 +472,7 @@ export default function Events() {
           />
         )}
 
-        {/* Event Form - Rendered outside tab condition */}
+        {/* Event Form - Rendered outside tab condition (Unchanged) */}
         {showEventForm && (
           <EventForm
             event={editingEvent}
