@@ -10,7 +10,7 @@ import {
 import { cn } from '../../lib/utils'
 
 // Get API base URL from environment variables
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api'
+const API_BASE_URL = import.meta.env.VITE_API_URL || ''
 
 const getIconForLabel = (label) => {
   const iconMap = {
@@ -48,7 +48,7 @@ const menuItems = [
   { label: 'Header', href: '/admin/header', section: 'MENU' },
   { label: 'Categories', href: '/admin/categories', section: 'MENU' },
   { label: 'Authors', href: '/admin/authors', section: 'MENU' },
-  // { label: 'Multimedia', href: '/admin/multimedia', section: 'MENU' },
+  { label: 'Reels', href: '/admin/reels', section: 'MENU' },
   { label: 'Inquiry', href: '/admin/inquiry', section: 'MENU' },
   { label: 'Premium Content', href: '/admin/premium', section: 'MENU' },
   { label: 'SEO Management', href: '/admin/seo', section: 'MENU' },

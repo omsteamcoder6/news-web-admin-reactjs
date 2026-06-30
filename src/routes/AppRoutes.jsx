@@ -29,6 +29,7 @@ import HeaderManager from '../components/admin/HeaderManager';
 import Contacts from '../pages/admin/Contacts'; 
 import Products from '../pages/admin/Products';
 import Events from '../pages/admin/Events';
+import ReelsPage from '../pages/admin/Reels';
 
 const AppRoute = () => {
   return (
@@ -149,6 +150,13 @@ const AppRoute = () => {
       <Route path="/admin/gallery" element={
         <ProtectedRoute requiredRole="admin">
           <Gallery />
+        </ProtectedRoute>
+      } />
+
+
+      <Route path="/admin/reels" element={
+        <ProtectedRoute requiredRole="admin">
+          <ReelsPage />
         </ProtectedRoute>
       } />
       
