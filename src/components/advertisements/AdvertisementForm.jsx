@@ -1,5 +1,14 @@
 import { useState, useEffect, useRef } from 'react';
 
+// ─── Media URL helper ──────────────────────────────────────────────────────
+const MEDIA_BASE = (import.meta.env.VITE_API_URL || '').replace(/\/api\/?$/, '');
+
+function getImageUrl(url) {
+  if (!url) return '';
+  if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:')) return url;
+  return `${MEDIA_BASE}${url.startsWith('/') ? '' : '/'}${url}`;
+}
+
 // ─── Data ────────────────────────────────────────────────────────────────────
 
 const POSITION_CATEGORIES = {
@@ -10,74 +19,19 @@ const POSITION_CATEGORIES = {
     'Footer': ['Above Footer', 'Inside Footer', 'After Footer', 'Sticky Footer'],
     'Between Posts': ['Every 1st Post', 'Every 2nd Post', 'Every 3rd Post', 'After Every Post'],
     'Video Player': ['Pre-roll', 'Mid-roll', 'Post-roll', 'Pause Ad'],
-
-    // ========== POPUP POSITIONS (47 Options) ==========
     'Popup': [
-        // Original Positions
-        'On Load',
-        'On Scroll',
-        'On Exit Intent',
-        'On Click',
-        'Timed Popup',
-
-        // Time-Based Positions
-        'On Load Delay 5s',
-        'On Load Delay 10s',
-        'On Load Delay 30s',
-        'On Idle',
-        'On Return',
-        'Every 30s',
-        'Every 60s',
-
-        // Scroll-Based Positions
-        'On Scroll 25%',
-        'On Scroll 50%',
-        'On Scroll 75%',
-        'On Scroll 100%',
-        'On Scroll Up',
-        'On Scroll Down',
-        'After First Scroll',
-
-        // Interaction-Based Positions
-        'On Click Anywhere',
-        'On Click Link',
-        'On Button Hover',
-        'On Image Click',
-        'On Form Focus',
-        'On Video Pause',
-        'On Video End',
-
-        // Page Navigation Positions
-        'On Page Change',
-        'On Back Button',
-        'On Refresh',
-        'Before Unload',
-
-        // Element-Based Positions
-        'On Menu Open',
-        'On Search',
-        'On Filter',
-        'On Add to Cart',
-        'On Checkout',
-        'On Share',
-
-        // Session-Based Positions
-        'On First Visit',
-        'On Second Visit',
-        'Every 3rd Page',
-        'On Return Visit',
-        'After 5 Seconds',
-        'After 10 Seconds',
-
-        // Mobile-Specific Positions
-        'On Swipe',
-        'On Orientation Change',
-        'On Touch Start',
-        'On Mobile Menu',
-        'On Keyboard Open'
+        'On Load', 'On Scroll', 'On Exit Intent', 'On Click', 'Timed Popup',
+        'On Load Delay 5s', 'On Load Delay 10s', 'On Load Delay 30s', 'On Idle', 'On Return',
+        'Every 30s', 'Every 60s', 'On Scroll 25%', 'On Scroll 50%', 'On Scroll 75%',
+        'On Scroll 100%', 'On Scroll Up', 'On Scroll Down', 'After First Scroll',
+        'On Click Anywhere', 'On Click Link', 'On Button Hover', 'On Image Click',
+        'On Form Focus', 'On Video Pause', 'On Video End', 'On Page Change',
+        'On Back Button', 'On Refresh', 'Before Unload', 'On Menu Open', 'On Search',
+        'On Filter', 'On Add to Cart', 'On Checkout', 'On Share', 'On First Visit',
+        'On Second Visit', 'Every 3rd Page', 'On Return Visit', 'After 5 Seconds',
+        'After 10 Seconds', 'On Swipe', 'On Orientation Change', 'On Touch Start',
+        'On Mobile Menu', 'On Keyboard Open'
     ],
-    // ========== END OF POPUP POSITIONS ==========
-
     'Floating': ['Corner Widget', 'Sticky Bottom', 'Slide-in Left', 'Slide-in Right'],
     'Interstitial': ['Full Screen', 'Between Pages'],
     'Homepage Premium': ['Top Banner', 'Middle Banner', 'Bottom Banner'],
@@ -128,7 +82,6 @@ const defaultForm = () => ({
     displayDuration: null,
     autoHide: false,
     autoClosePopup: true,
-    // NEW: Ad Slot Assignment Fields
     adSlot1Enabled: false,
     adSlot2Enabled: false,
 });
@@ -515,9 +468,10 @@ function MultipleImageUpload({ images = [], onChange, maxImages = 10 }) {
                         >
                             {img.isMain && <span style={s.mainBadge}>★ MAIN</span>}
                             <img
-                                src={img.preview || img.url}
+                                src={img.preview || getImageUrl(img.url)}
                                 alt={`Ad image ${idx + 1}`}
                                 style={{ width: '100%', height: '120px', objectFit: 'cover', display: 'block' }}
+                                onError={(e) => { e.currentTarget.style.opacity = '0.3'; }}
                             />
                             <div style={s.imageActions}>
                                 {!img.isMain && (
@@ -677,7 +631,7 @@ function NativeAdFields({ brandName, brandLogo, onBrandNameChange, onBrandLogoCh
                         onChange={e => handleLogoUpload(e.target.files[0])}
                     />
                     {preview && (
-                        <img src={preview} alt="Brand logo" style={{ width: '40px', height: '40px', borderRadius: '8px', objectFit: 'cover' }} />
+                        <img src={getImageUrl(preview)} alt="Brand logo" style={{ width: '40px', height: '40px', borderRadius: '8px', objectFit: 'cover' }} />
                     )}
                 </div>
                 <span style={s.hint}>Square logo recommended</span>
@@ -692,9 +646,7 @@ function AdSizeSelector({ selectedSize, onSizeChange, placementCategory }) {
     const [sizeError, setSizeError] = useState(null);
     const [imageDimensions, setImageDimensions] = useState(null);
 
-    // All available ad sizes with descriptions
     const ALL_AD_SIZES = [
-        // Desktop Sizes
         { width: 728, height: 90, label: 'Leaderboard', description: 'Top of desktop website', category: 'desktop', placement: 'Header, Footer' },
         { width: 970, height: 90, label: 'Large Leaderboard', description: 'Premium desktop header', category: 'desktop', placement: 'Header' },
         { width: 970, height: 250, label: 'Billboard', description: 'High revenue homepage banner', category: 'desktop', placement: 'Homepage Premium' },
@@ -702,17 +654,14 @@ function AdSizeSelector({ selectedSize, onSizeChange, placementCategory }) {
         { width: 336, height: 280, label: 'Large Rectangle', description: 'Blog/news article ads', category: 'desktop', placement: 'Article Middle' },
         { width: 160, height: 600, label: 'Wide Skyscraper', description: 'Sidebar desktop ads', category: 'desktop', placement: 'Sidebar' },
         { width: 300, height: 600, label: 'Half Page', description: 'High CPM sidebar ads', category: 'desktop', placement: 'Sidebar' },
-        // Mobile Sizes
         { width: 320, height: 50, label: 'Mobile Banner', description: 'Mobile top/bottom', category: 'mobile', placement: 'Top Banner, Sticky Bottom' },
         { width: 320, height: 100, label: 'Large Mobile Banner', description: 'Better mobile revenue', category: 'mobile', placement: 'Top Banner' },
         { width: 300, height: 250, label: 'Mobile Rectangle', description: 'Mobile article ads', category: 'mobile', placement: 'Between News Cards' }
     ];
 
-    // Filter sizes based on placement category
     const getFilteredSizes = () => {
         const desktopPlacements = ['Header', 'Homepage Premium', 'Article Middle', 'Sidebar', 'Footer'];
         const isDesktop = desktopPlacements.includes(placementCategory);
-
         if (isDesktop) {
             return ALL_AD_SIZES.filter(size => size.category.includes('desktop'));
         } else {
@@ -837,22 +786,56 @@ export function AdvertisementForm({ isOpen, onClose, onSubmit, editingAd }) {
     const [showAdvanced, setShowAdvanced] = useState(false);
     const [showTimerSettings, setShowTimerSettings] = useState(false);
     const [showSlotSettings, setShowSlotSettings] = useState(false);
-    const [selectedSize, setSelectedSize] = useState(editingAd?.adSize || null);
-    const [deviceCategory, setDeviceCategory] = useState(editingAd?.deviceCategory || 'both');
+    const [selectedSize, setSelectedSize] = useState(null);
+    const [deviceCategory, setDeviceCategory] = useState('both');
+    const [isLoading, setIsLoading] = useState(false);
 
+    // 🔧 FIXED: Clean up editing data before populating form
     useEffect(() => {
-        if (!isOpen) return;
+        if (!isOpen) {
+            // Reset form when modal closes
+            setFormData(defaultForm());
+            setSelectedSize(null);
+            setDeviceCategory('both');
+            setShowRotation(false);
+            setShowAdvanced(false);
+            setShowTimerSettings(false);
+            setShowSlotSettings(false);
+            setIsLoading(false);
+            return;
+        }
+
         if (editingAd) {
-            setFormData({
-                ...defaultForm(),
-                ...editingAd,
-                // FIXED: No division by 100 - store as is
-                budget: editingAd.budget || 0,
-                costPerUnit: editingAd.costPerUnit || 0,
+            // ✅ Extract ONLY the fields we need for the form
+            const cleanAd = {
+                title: editingAd.title || '',
+                description: editingAd.description || '',
+                type: editingAd.type || 'banner',
                 images: editingAd.images || [],
                 videoUrl: editingAd.videoUrl || '',
+                videoFile: null, // Reset video file
                 brandName: editingAd.brandName || '',
                 brandLogo: editingAd.brandLogo || '',
+                linkUrl: editingAd.linkUrl || '',
+                placementCategory: editingAd.placementCategory || 'Header',
+                placementPosition: editingAd.placementPosition || 'Above Logo',
+                targetPages: editingAd.targetPages || ['all'],
+                targetDevices: editingAd.targetDevices || ['desktop'],
+                targetAudiences: editingAd.targetAudiences || [],
+                startDate: editingAd.startDate ? new Date(editingAd.startDate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+                endDate: editingAd.endDate ? new Date(editingAd.endDate).toISOString().split('T')[0] : '',
+                pricingModel: editingAd.pricingModel || 'cpc',
+                budget: editingAd.budget || 0,
+                costPerUnit: editingAd.costPerUnit || 0,
+                rotationMethod: editingAd.rotationMethod || 'random',
+                rotationWeight: editingAd.rotationWeight || 100,
+                rotationGroupId: editingAd.rotationGroupId || null,
+                isPartOfRotation: editingAd.isPartOfRotation || false,
+                targetLocations: editingAd.targetLocations || [],
+                targetBehaviors: editingAd.targetBehaviors || [],
+                targetTimeOfDay: editingAd.targetTimeOfDay || [],
+                frequencyCap: editingAd.frequencyCap || null,
+                frequencyCapInterval: editingAd.frequencyCapInterval || 'day',
                 adSize: editingAd.adSize || null,
                 deviceCategory: editingAd.deviceCategory || 'both',
                 displayDuration: editingAd.displayDuration || null,
@@ -860,10 +843,13 @@ export function AdvertisementForm({ isOpen, onClose, onSubmit, editingAd }) {
                 autoClosePopup: editingAd.autoClosePopup !== undefined ? editingAd.autoClosePopup : true,
                 adSlot1Enabled: editingAd.adSlot1Enabled || false,
                 adSlot2Enabled: editingAd.adSlot2Enabled || false,
-            });
+            };
+
+            setFormData(cleanAd);
             setSelectedSize(editingAd.adSize || null);
             setDeviceCategory(editingAd.deviceCategory || 'both');
         } else {
+            // New ad - use default form
             setFormData(defaultForm());
             setSelectedSize(null);
             setDeviceCategory('both');
@@ -905,16 +891,24 @@ export function AdvertisementForm({ isOpen, onClose, onSubmit, editingAd }) {
         }
     };
 
-    // FIXED: No multiplication by 100 - send values as is
     const handleSubmit = () => {
+        setIsLoading(true);
+        
         const imageFiles = formData.images
             .filter(img => img.file instanceof File)
             .map(img => img.file);
+
+        const imagesMeta = formData.images.map(img =>
+            img.file instanceof File
+                ? { isNew: true, isMain: !!img.isMain }
+                : { id: img.id, url: img.url, isMain: !!img.isMain }
+        );
 
         const submitData = {
             title: formData.title,
             description: formData.description,
             type: formData.type,
+            images: imagesMeta,
             linkUrl: formData.linkUrl,
             placementCategory: formData.placementCategory,
             placementPosition: formData.placementPosition,
@@ -927,7 +921,6 @@ export function AdvertisementForm({ isOpen, onClose, onSubmit, editingAd }) {
             startDate: formData.startDate,
             endDate: formData.endDate,
             pricingModel: formData.pricingModel,
-            // FIXED: No multiplication - send as entered by user
             budget: formData.budget,
             costPerUnit: formData.costPerUnit,
             rotationMethod: formData.rotationMethod,
@@ -948,6 +941,7 @@ export function AdvertisementForm({ isOpen, onClose, onSubmit, editingAd }) {
         };
 
         onSubmit(submitData, imageFiles, formData.videoFile);
+        setIsLoading(false);
         onClose();
     };
 
@@ -1516,8 +1510,8 @@ export function AdvertisementForm({ isOpen, onClose, onSubmit, editingAd }) {
 
                 <div style={s.footer}>
                     <button style={s.btnOutline} onClick={onClose}>Cancel</button>
-                    <button style={s.btnPrimary(isDisabled())} onClick={handleSubmit} disabled={isDisabled()}>
-                        {editingAd ? '✓  Update & Submit for Approval' : '✓  Create & Submit for Approval'}
+                    <button style={s.btnPrimary(isDisabled() || isLoading)} onClick={handleSubmit} disabled={isDisabled() || isLoading}>
+                        {isLoading ? 'Saving...' : (editingAd ? '✓  Update & Submit for Approval' : '✓  Create & Submit for Approval')}
                     </button>
                 </div>
             </div>

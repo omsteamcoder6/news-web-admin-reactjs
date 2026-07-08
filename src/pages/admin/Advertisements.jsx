@@ -76,7 +76,7 @@ export default function AdvertisementsPage() {
       const headers = getAuthHeaders();
       if (!headers) return;
       
-      const response = await fetch(`${API_BASE_URL}/advertisements/stats`, {
+      const response = await fetch(`${API_BASE_URL}/advertisements/stats/dashboard`, {
         method: 'GET',
         headers
       });
@@ -101,6 +101,7 @@ export default function AdvertisementsPage() {
     }
   }, [fetchAds, fetchStats, isAuthenticated, token]);
 
+  // ✅ FIXED: Clean save function
   const saveAd = async (formData, imageFiles, videoFile) => {
     if (!token) {
       toast.error('Please login to continue');
@@ -110,7 +111,7 @@ export default function AdvertisementsPage() {
     try {
       const formDataToSend = new FormData();
       
-      // Append form data
+      // Append form data - clean version
       Object.keys(formData).forEach(key => {
         if (formData[key] !== null && formData[key] !== undefined) {
           if (typeof formData[key] === 'object') {
@@ -130,20 +131,21 @@ export default function AdvertisementsPage() {
       
       // Append video
       if (videoFile) {
-        formDataToSend.append('video', videoFile);
+        formDataToSend.append('videoFile', videoFile);
       }
       
       const headers = {
         'Authorization': `Bearer ${token}`
       };
-      // Don't set Content-Type for FormData, browser will set it with boundary
       
-      const url = editingAd 
-        ? `${API_BASE_URL}/advertisements/${editingAd.id || editingAd._id}`
+      // ✅ FIXED: Use consistent ID extraction
+      const adId = editingAd?._id || editingAd?.id;
+      const url = adId 
+        ? `${API_BASE_URL}/advertisements/${adId}`
         : `${API_BASE_URL}/advertisements`;
       
       const response = await fetch(url, {
-        method: editingAd ? 'PUT' : 'POST',
+        method: adId ? 'PUT' : 'POST',
         headers,
         body: formDataToSend
       });
@@ -170,6 +172,7 @@ export default function AdvertisementsPage() {
     }
   };
 
+  // ✅ FIXED: Delete with proper ID
   const handleDeleteAd = async (adId) => {
     if (!adId) {
       console.error('Invalid ad ID:', adId);
@@ -185,7 +188,6 @@ export default function AdvertisementsPage() {
     const confirmDelete = window.confirm('Are you sure you want to delete this advertisement? This action cannot be undone.');
     if (!confirmDelete) return;
 
-    // Optimistic update: remove from UI immediately
     const previousAds = ads;
     setAds(prev => prev.filter(ad => (ad._id || ad.id) !== adId));
 
@@ -217,6 +219,7 @@ export default function AdvertisementsPage() {
     }
   };
 
+  // ✅ FIXED: Approve
   const approveAd = async (id) => {
     if (!token) {
       toast.error('Please login to continue');
@@ -228,7 +231,7 @@ export default function AdvertisementsPage() {
       if (!headers) throw new Error('Authentication required');
       
       const response = await fetch(`${API_BASE_URL}/advertisements/${id}/approve`, {
-        method: 'PATCH',
+        method: 'PUT',
         headers
       });
       
@@ -247,6 +250,7 @@ export default function AdvertisementsPage() {
     }
   };
 
+  // ✅ FIXED: Reject
   const rejectAd = async (id, reason) => {
     if (!token) {
       toast.error('Please login to continue');
@@ -260,7 +264,7 @@ export default function AdvertisementsPage() {
       };
       
       const response = await fetch(`${API_BASE_URL}/advertisements/${id}/reject`, {
-        method: 'PATCH',
+        method: 'PUT',
         headers,
         body: JSON.stringify({ reason })
       });
@@ -281,6 +285,7 @@ export default function AdvertisementsPage() {
     }
   };
 
+  // ✅ FIXED: Pause
   const pauseAd = async (id) => {
     if (!token) {
       toast.error('Please login to continue');
@@ -292,7 +297,7 @@ export default function AdvertisementsPage() {
       if (!headers) throw new Error('Authentication required');
       
       const response = await fetch(`${API_BASE_URL}/advertisements/${id}/pause`, {
-        method: 'PATCH',
+        method: 'PUT',
         headers
       });
       
@@ -311,6 +316,7 @@ export default function AdvertisementsPage() {
     }
   };
 
+  // ✅ FIXED: Resume
   const resumeAd = async (id) => {
     if (!token) {
       toast.error('Please login to continue');
@@ -322,7 +328,7 @@ export default function AdvertisementsPage() {
       if (!headers) throw new Error('Authentication required');
       
       const response = await fetch(`${API_BASE_URL}/advertisements/${id}/resume`, {
-        method: 'PATCH',
+        method: 'PUT',
         headers
       });
       
@@ -452,24 +458,38 @@ export default function AdvertisementsPage() {
                     <p>No advertisements in this category</p>
                   </div>
                 ) : (
-                  filteredAds.map(ad => (
-                    <AdCard
-                      key={ad._id || ad.id}
-                      ad={{
-                        ...ad,
-                        id: ad._id || ad.id,
-                      }}
-                      onEdit={(ad) => { 
-                        setEditingAd(ad); 
-                        setShowCreateDialog(true); 
-                      }}
-                      onDelete={handleDeleteAd}
-                      onApprove={approveAd}
-                      onReject={(id) => setRejectAdId(id)}
-                      onPause={pauseAd}
-                      onResume={resumeAd}
-                    />
-                  ))
+                  filteredAds.map(ad => {
+                    // ✅ FIXED: Ensure consistent ID
+                    const adId = ad._id || ad.id;
+                    return (
+                      <AdCard
+                        key={adId}
+                        ad={{
+                          ...ad,
+                          id: adId,
+                        }}
+                        // ✅ FIXED: Pass clean editing data
+                        onEdit={(ad) => { 
+                          // Clean the ad object before passing to form
+                          const cleanAd = { ...ad };
+                          delete cleanAd.__v;
+                          delete cleanAd.createdAt;
+                          delete cleanAd.updatedAt;
+                          delete cleanAd.createdBy;
+                          delete cleanAd.approvedBy;
+                          delete cleanAd.rejectedBy;
+                          delete cleanAd.deletedBy;
+                          setEditingAd(cleanAd); 
+                          setShowCreateDialog(true); 
+                        }}
+                        onDelete={handleDeleteAd}
+                        onApprove={approveAd}
+                        onReject={(id) => setRejectAdId(id)}
+                        onPause={pauseAd}
+                        onResume={resumeAd}
+                      />
+                    );
+                  })
                 )}
               </TabsContent>
             </Tabs>

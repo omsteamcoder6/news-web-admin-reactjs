@@ -27,7 +27,7 @@ export default function UpcomingEventList({
     setError(null);
 
     try {
-      const response = await fetch(`${API_BASE_URL}/upcoming-events/public/upcoming?limit=100`, {
+      const response = await fetch(`${API_BASE_URL}/upcoming-events?limit=100`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
