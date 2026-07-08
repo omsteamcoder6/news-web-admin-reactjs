@@ -1,3 +1,4 @@
+// CategoryManager.jsx
 import { useState } from 'react'
 import { categories, addCategory } from '../../data/categories'
 

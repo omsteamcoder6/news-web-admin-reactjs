@@ -1,9 +1,15 @@
+// GalleryList.jsx
 import { useState, useEffect } from 'react';
 import { getAllCategories } from '../../data/categories';
-import galleryApi, { getImageUrl } from '../../lib/galleryApi'; // Adjust path
-import CreateGalleryModal from './CreateGalleryModal'; // Import the modal
+import CreateGalleryModal from './CreateGalleryModal';
 
-export default function GalleryList({ filterCategory, filterDate, onFilterChange }) {
+export default function GalleryList({ 
+  filterCategory, 
+  filterDate, 
+  onFilterChange,
+  token,
+  API_BASE_URL
+}) {
   const [galleryItems, setGalleryItems] = useState([]);
   const [filteredItems, setFilteredItems] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState(filterCategory || '');
@@ -14,44 +20,66 @@ export default function GalleryList({ filterCategory, filterDate, onFilterChange
   
   // Modal state
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingItem, setEditingItem] = useState(null); // null = create mode, object = edit mode
+  const [editingItem, setEditingItem] = useState(null);
 
-  // Load categories
+  // Load categories from API
   useEffect(() => {
-    const loadCategories = async () => {
-      const result = await galleryApi.getCategories();
-      if (result.success) {
-        setCategoryList(result.data);
-      } else {
-        // Fallback to local categories
+    const fetchCategories = async () => {
+      try {
+        const response = await fetch(`${API_BASE_URL}/gallery/categories`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        if (response.ok) {
+          const data = await response.json();
+          setCategoryList(data.data || getAllCategories());
+        } else {
+          setCategoryList(getAllCategories());
+        }
+      } catch (error) {
+        console.error('Error fetching categories:', error);
         setCategoryList(getAllCategories());
       }
     };
-    loadCategories();
-  }, []);
+    fetchCategories();
+  }, [API_BASE_URL, token]);
 
   // Load gallery items from API
   const loadGalleryItems = async () => {
     setLoading(true);
-    const params = {};
-    if (selectedCategory) params.category = selectedCategory;
-    if (selectedDate) params.date = selectedDate;
-    
-    const result = await galleryApi.getGalleryItems(params);
-    if (result.success) {
-      setGalleryItems(result.data);
-    } else {
-      console.error('Failed to load gallery items:', result.message);
-      setGalleryItems([]);
+    try {
+      let url = `${API_BASE_URL}/gallery`
+      const params = new URLSearchParams()
+      if (selectedCategory) params.append('category', selectedCategory)
+      if (selectedDate) params.append('date', selectedDate)
+      if (params.toString()) url += `?${params.toString()}`
+
+      const response = await fetch(url, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch gallery items')
+      }
+      
+      const result = await response.json()
+      setGalleryItems(result.data || [])
+    } catch (error) {
+      console.error('Error loading gallery items:', error)
+      setGalleryItems([])
+    } finally {
+      setLoading(false)
     }
-    setLoading(false);
   };
 
   useEffect(() => {
     loadGalleryItems();
   }, [selectedCategory, selectedDate]);
 
-  // Filter items (API already filters, but we can also filter locally if needed)
+  // Filter items locally (already filtered by API)
   useEffect(() => {
     setFilteredItems(galleryItems);
   }, [galleryItems]);
@@ -83,51 +111,76 @@ export default function GalleryList({ filterCategory, filterDate, onFilterChange
 
   const handleDeleteItem = async (id) => {
     if (window.confirm('Are you sure you want to delete this image?')) {
-      const result = await galleryApi.deleteGalleryItem(id);
-      if (result.success) {
-        // Reload items
-        loadGalleryItems();
-      } else {
-        if (result.unauthorized) {
-          alert('Please login to delete items');
-        } else {
-          alert(result.message || 'Failed to delete item');
+      try {
+        const response = await fetch(`${API_BASE_URL}/gallery/${id}`, {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        
+        if (!response.ok) {
+          throw new Error('Failed to delete item');
         }
+        
+        loadGalleryItems();
+      } catch (error) {
+        console.error('Error deleting item:', error);
+        alert('Failed to delete item. Please try again.');
       }
     }
   };
 
-  // Open modal for editing - FIXED: log to debug
   const handleEditItem = (item) => {
-    console.log('Edit button clicked, item:', item); // Debug log
+    console.log('Edit button clicked, item:', item);
     setEditingItem(item);
     setIsModalOpen(true);
   };
 
-  // Open modal for creating new item
   const handleAddNew = () => {
-    console.log('Add New button clicked'); // Debug log
+    console.log('Add New button clicked');
     setEditingItem(null);
     setIsModalOpen(true);
   };
 
-  // Handle modal close
   const handleModalClose = () => {
-    console.log('Modal closed'); // Debug log
+    console.log('Modal closed');
     setIsModalOpen(false);
     setEditingItem(null);
   };
 
-  // Handle successful save/update
   const handleGallerySaved = () => {
-    console.log('Gallery saved, refreshing list'); // Debug log
-    loadGalleryItems(); // Refresh the list
+    console.log('Gallery saved, refreshing list');
+    loadGalleryItems();
     handleModalClose();
   };
 
   const getUniqueDates = () => {
     const dates = [...new Set(galleryItems.map(item => item.date))];
     return dates.sort().reverse();
+  };
+
+  // Build a full, loadable URL for an image path returned by the API.
+  // Handles cases where the backend returns:
+  //  - a full URL (http://... or https://...) -> used as-is
+  //  - a data/blob URL -> used as-is
+  //  - a relative path (e.g. "/uploads/gallery/xyz.jpg") -> prefixed with the API server's origin
+  const getImageUrl = (path) => {
+    if (!path) return '';
+    if (/^(https?:)?\/\//i.test(path) || path.startsWith('data:') || path.startsWith('blob:')) {
+      return path;
+    }
+    // API_BASE_URL is often like "https://api.example.com/api" - strip a trailing /api
+    // so we get the server root that actually serves the uploaded files.
+    const serverRoot = (API_BASE_URL || '').replace(/\/api\/?$/, '');
+    return `${serverRoot}${path.startsWith('/') ? '' : '/'}${path}`;
+  };
+
+  const handleImageError = (e) => {
+    e.target.onerror = null;
+    e.target.src = 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(
+      `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" fill="#f1f5f9"/><text x="50" y="55" font-size="30" text-anchor="middle" fill="#94a3b8">🖼️</text></svg>`
+    );
   };
 
   const getCategoryColor = (categoryName) => {
@@ -249,11 +302,12 @@ export default function GalleryList({ filterCategory, filterDate, onFilterChange
           ) : viewMode === 'grid' ? (
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
               {filteredItems.map((item) => (
-                <div key={item._id || item.id} className="group relative">
+                <div key={item.id || item._id} className="group relative">
                   <div className="aspect-square rounded-xl overflow-hidden bg-gray-100">
                     <img 
                       src={getImageUrl(item.imageUrl || item.image)} 
                       alt={item.altText}
+                      onError={handleImageError}
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                     />
                     {item.isFeatured && (
@@ -262,7 +316,6 @@ export default function GalleryList({ filterCategory, filterDate, onFilterChange
                       </span>
                     )}
                     <div className="absolute top-2 left-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      {/* Edit Button */}
                       <button
                         type="button"
                         onClick={(e) => {
@@ -276,12 +329,11 @@ export default function GalleryList({ filterCategory, filterDate, onFilterChange
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                         </svg>
                       </button>
-                      {/* Delete Button */}
                       <button
                         type="button"
                         onClick={(e) => {
                           e.stopPropagation();
-                          handleDeleteItem(item._id || item.id);
+                          handleDeleteItem(item.id || item._id);
                         }}
                         className="bg-black/50 text-white p-1 rounded-full hover:bg-red-500 transition-colors"
                         title="Delete"
@@ -306,10 +358,11 @@ export default function GalleryList({ filterCategory, filterDate, onFilterChange
           ) : (
             <div className="space-y-2">
               {filteredItems.map((item) => (
-                <div key={item._id || item.id} className="flex items-center gap-3 p-2 hover:bg-gray-50 rounded-lg transition-colors">
+                <div key={item.id || item._id} className="flex items-center gap-3 p-2 hover:bg-gray-50 rounded-lg transition-colors">
                   <img 
                     src={getImageUrl(item.imageUrl || item.image)} 
                     alt={item.altText}
+                    onError={handleImageError}
                     className="w-12 h-12 rounded-lg object-cover bg-gray-100"
                   />
                   <div className="flex-1 min-w-0">
@@ -327,7 +380,6 @@ export default function GalleryList({ filterCategory, filterDate, onFilterChange
                     </div>
                   </div>
                   <div className="flex gap-1">
-                    {/* Edit Button for List View */}
                     <button
                       type="button"
                       onClick={() => handleEditItem(item)}
@@ -338,10 +390,9 @@ export default function GalleryList({ filterCategory, filterDate, onFilterChange
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                       </svg>
                     </button>
-                    {/* Delete Button for List View */}
                     <button
                       type="button"
-                      onClick={() => handleDeleteItem(item._id || item.id)}
+                      onClick={() => handleDeleteItem(item.id || item._id)}
                       className="text-gray-300 hover:text-red-400 transition-colors p-1"
                       title="Delete"
                     >
@@ -363,6 +414,8 @@ export default function GalleryList({ filterCategory, filterDate, onFilterChange
         onClose={handleModalClose}
         onGallerySaved={handleGallerySaved}
         editingItem={editingItem}
+        token={token}
+        API_BASE_URL={API_BASE_URL}
       />
     </>
   );

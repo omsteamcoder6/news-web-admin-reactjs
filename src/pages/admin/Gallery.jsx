@@ -1,9 +1,14 @@
+// Gallery.jsx
 import { MainLayout } from "../../layout/MainLayout"
 import { useState } from 'react'
+import { useAuthStore } from '../../stores/authStore'
 import CreateGalleryModal from "../../components/gallery/CreateGalleryModal"
 import GalleryList from "../../components/gallery/GalleryList"
 
 export default function Gallery() {
+  const { token, isAuthenticated } = useAuthStore()
+  const API_BASE_URL = import.meta.env.VITE_API_URL
+  
   const [refreshKey, setRefreshKey] = useState(0)
   const [filterCategory, setFilterCategory] = useState('')
   const [filterDate, setFilterDate] = useState('')
@@ -22,7 +27,6 @@ export default function Gallery() {
             <h1 className="text-4xl font-bold text-slate-900">Homepage Management</h1>
             <p className="text-slate-600 mt-2">Customize your homepage layout and content</p>
           </div>
-          {/* Navbar Gallery Button */}
           <button
             onClick={() => setIsModalOpen(true)}
             className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-md"
@@ -34,19 +38,21 @@ export default function Gallery() {
           </button>
         </div>
 
-        {/* Gallery List with Filters */}
         <GalleryList 
           key={refreshKey}
           filterCategory={filterCategory}
           filterDate={filterDate}
           onFilterChange={{ setFilterCategory, setFilterDate }}
+          token={token}
+          API_BASE_URL={API_BASE_URL}
         />
 
-        {/* Modal for Creating Gallery Post */}
         <CreateGalleryModal 
           isOpen={isModalOpen}
           onClose={() => setIsModalOpen(false)}
           onGallerySaved={handleGallerySaved}
+          token={token}
+          API_BASE_URL={API_BASE_URL}
         />
       </div>
     </MainLayout>

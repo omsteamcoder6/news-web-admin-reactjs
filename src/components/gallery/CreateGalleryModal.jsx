@@ -1,8 +1,15 @@
+// CreateGalleryModal.jsx
 import { useState, useEffect } from 'react'
 import { categories, addCategory } from '../../data/categories'
-import galleryApi, { createGalleryFormData, getImageUrl } from '../../lib/galleryApi' // Adjust path as needed
 
-export default function CreateGalleryModal({ isOpen, onClose, onGallerySaved, editingItem }) {
+export default function CreateGalleryModal({ 
+  isOpen, 
+  onClose, 
+  onGallerySaved, 
+  editingItem,
+  token,
+  API_BASE_URL
+}) {
   const [formData, setFormData] = useState({
     image: null,
     title: '',
@@ -29,20 +36,30 @@ export default function CreateGalleryModal({ isOpen, onClose, onGallerySaved, ed
   const [newCategoryName, setNewCategoryName] = useState('')
   const [newCategoryDesc, setNewCategoryDesc] = useState('')
   const [categoryList, setCategoryList] = useState([...categories])
-  const [showSeoSection, setShowSeoSection] = useState(false) // Toggle for SEO section
+  const [showSeoSection, setShowSeoSection] = useState(false)
   
   const isEditMode = !!editingItem
 
-  console.log('Modal props:', { isOpen, editingItem, isEditMode }); // Debug log
+  // Build a full, loadable URL for an image path returned by the API
+  // (mirrors the same helper in GalleryList.jsx)
+  const getImageUrl = (path) => {
+    if (!path) return '';
+    if (/^(https?:)?\/\//i.test(path) || path.startsWith('data:') || path.startsWith('blob:')) {
+      return path;
+    }
+    const serverRoot = (API_BASE_URL || '').replace(/\/api\/?$/, '');
+    return `${serverRoot}${path.startsWith('/') ? '' : '/'}${path}`;
+  };
+
+  console.log('Modal props:', { isOpen, editingItem, isEditMode })
 
   // Populate form when editing an item
   useEffect(() => {
-    console.log('useEffect triggered, editingItem:', editingItem); // Debug log
+    console.log('useEffect triggered, editingItem:', editingItem)
     
     if (editingItem) {
-      // Normalize the item data (handle both _id and id)
       const itemData = {
-        _id: editingItem._id || editingItem.id,
+        id: editingItem.id || editingItem._id,
         title: editingItem.title || '',
         description: editingItem.description || '',
         altText: editingItem.altText || '',
@@ -50,18 +67,16 @@ export default function CreateGalleryModal({ isOpen, onClose, onGallerySaved, ed
         photographer: editingItem.photographer || '',
         date: editingItem.date || new Date().toISOString().split('T')[0],
         isFeatured: editingItem.isFeatured || false,
-        imageUrl: editingItem.imageUrl || editingItem.image || '',
-        // ========== SEO FIELDS START ==========
+        imageUrl: getImageUrl(editingItem.imageUrl || editingItem.image || ''),
         metaTitle: editingItem.metaTitle || '',
         metaDescription: editingItem.metaDescription || '',
         canonicalUrl: editingItem.canonicalUrl || '',
         ogTitle: editingItem.ogTitle || '',
         ogDescription: editingItem.ogDescription || '',
         keywords: editingItem.keywords || ''
-        // ========== SEO FIELDS END ==========
       }
       
-      console.log('Populating form with:', itemData); // Debug log
+      console.log('Populating form with:', itemData)
       
       setFormData({
         image: null,
@@ -72,25 +87,20 @@ export default function CreateGalleryModal({ isOpen, onClose, onGallerySaved, ed
         photographer: itemData.photographer,
         date: itemData.date ? new Date(itemData.date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
         isFeatured: itemData.isFeatured,
-        // ========== SEO FIELDS START ==========
         metaTitle: itemData.metaTitle,
         metaDescription: itemData.metaDescription,
         canonicalUrl: itemData.canonicalUrl,
         ogTitle: itemData.ogTitle,
         ogDescription: itemData.ogDescription,
         keywords: itemData.keywords
-        // ========== SEO FIELDS END ==========
       })
       
-      // Set preview from existing image URL
       if (itemData.imageUrl) {
-        const fullImageUrl = getImageUrl(itemData.imageUrl);
-        console.log('Setting preview URL:', fullImageUrl); // Debug log
-        setPreviewUrl(fullImageUrl)
+        setPreviewUrl(itemData.imageUrl)
+        console.log('Setting preview URL:', itemData.imageUrl)
       }
     } else {
-      console.log('Resetting form for create mode'); // Debug log
-      // Reset form for create mode
+      console.log('Resetting form for create mode')
       setFormData({
         image: null,
         title: '',
@@ -100,14 +110,12 @@ export default function CreateGalleryModal({ isOpen, onClose, onGallerySaved, ed
         photographer: '',
         date: new Date().toISOString().split('T')[0],
         isFeatured: false,
-        // ========== SEO FIELDS START ==========
         metaTitle: '',
         metaDescription: '',
         canonicalUrl: '',
         ogTitle: '',
         ogDescription: '',
         keywords: ''
-        // ========== SEO FIELDS END ==========
       })
       setPreviewUrl('')
       setErrors({})
@@ -131,7 +139,6 @@ export default function CreateGalleryModal({ isOpen, onClose, onGallerySaved, ed
   const validateForm = () => {
     const newErrors = {}
     
-    // Only validate image for create mode, or if a new image is uploaded in edit mode
     if (!isEditMode && !formData.image) {
       newErrors.image = 'Please upload an image'
     } else if (formData.image && formData.image.size > 5 * 1024 * 1024) {
@@ -185,117 +192,96 @@ export default function CreateGalleryModal({ isOpen, onClose, onGallerySaved, ed
   const handleSubmit = async (e) => {
     e.preventDefault()
     
-    console.log('Form submitted, isEditMode:', isEditMode); // Debug log
+    console.log('Form submitted, isEditMode:', isEditMode)
     
     if (!validateForm()) {
-      console.log('Validation failed:', errors); // Debug log
+      console.log('Validation failed:', errors)
       return
     }
     
     setIsSubmitting(true)
     
     try {
-      let response
+      // Create FormData for file upload
+      const formDataToSend = new FormData()
+      formDataToSend.append('title', formData.title)
+      formDataToSend.append('description', formData.description || '')
+      formDataToSend.append('altText', formData.altText)
+      formDataToSend.append('category', formData.category)
+      formDataToSend.append('photographer', formData.photographer || '')
+      formDataToSend.append('date', formData.date)
+      formDataToSend.append('isFeatured', formData.isFeatured ? 'true' : 'false')
+      formDataToSend.append('metaTitle', formData.metaTitle || '')
+      formDataToSend.append('metaDescription', formData.metaDescription || '')
+      formDataToSend.append('canonicalUrl', formData.canonicalUrl || '')
+      formDataToSend.append('ogTitle', formData.ogTitle || '')
+      formDataToSend.append('ogDescription', formData.ogDescription || '')
+      formDataToSend.append('keywords', formData.keywords || '')
       
-      if (isEditMode) {
-        // UPDATE MODE
-        const itemId = editingItem._id || editingItem.id;
-        console.log('Updating item with ID:', itemId); // Debug log
-        
-        const formDataToSend = createGalleryFormData({
-          title: formData.title,
-          description: formData.description,
-          image: formData.image, // Will be null if no new image selected
-          altText: formData.altText,
-          category: formData.category,
-          photographer: formData.photographer,
-          date: formData.date,
-          isFeatured: formData.isFeatured,
-          // ========== SEO FIELDS START ==========
-          metaTitle: formData.metaTitle,
-          metaDescription: formData.metaDescription,
-          canonicalUrl: formData.canonicalUrl,
-          ogTitle: formData.ogTitle,
-          ogDescription: formData.ogDescription,
-          keywords: formData.keywords
-          // ========== SEO FIELDS END ==========
-        })
-        
-        response = await galleryApi.updateGalleryItem(itemId, formDataToSend)
-        console.log('Update response:', response); // Debug log
-      } else {
-        // CREATE MODE
-        console.log('Creating new item'); // Debug log
-        
-        const formDataToSend = createGalleryFormData({
-          title: formData.title,
-          description: formData.description,
-          image: formData.image,
-          altText: formData.altText,
-          category: formData.category,
-          photographer: formData.photographer,
-          date: formData.date,
-          isFeatured: formData.isFeatured,
-          // ========== SEO FIELDS START ==========
-          metaTitle: formData.metaTitle,
-          metaDescription: formData.metaDescription,
-          canonicalUrl: formData.canonicalUrl,
-          ogTitle: formData.ogTitle,
-          ogDescription: formData.ogDescription,
-          keywords: formData.keywords
-          // ========== SEO FIELDS END ==========
-        })
-        
-        response = await galleryApi.createGalleryItem(formDataToSend)
-        console.log('Create response:', response); // Debug log
+      // Append image file if exists
+      if (formData.image) {
+        formDataToSend.append('image', formData.image)
       }
+
+      let url = `${API_BASE_URL}/gallery`
+      let method = 'POST'
+
+      if (isEditMode) {
+        const itemId = editingItem.id || editingItem._id
+        url = `${API_BASE_URL}/gallery/${itemId}`
+        method = 'PUT'
+        console.log('Updating item with ID:', itemId)
+      }
+
+      const response = await fetch(url, {
+        method: method,
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+        body: formDataToSend
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.message || `Failed to ${isEditMode ? 'update' : 'create'} gallery item`)
+      }
+
+      const result = await response.json()
+      console.log(`${isEditMode ? 'Update' : 'Create'} successful:`, result)
       
-      if (response.success) {
-        console.log('Success! Closing modal and refreshing'); // Debug log
-        // Reset form
-        setFormData({
-          image: null,
-          title: '',
-          description: '',
-          altText: '',
-          category: '',
-          photographer: '',
-          date: new Date().toISOString().split('T')[0],
-          isFeatured: false,
-          // ========== SEO FIELDS START ==========
-          metaTitle: '',
-          metaDescription: '',
-          canonicalUrl: '',
-          ogTitle: '',
-          ogDescription: '',
-          keywords: ''
-          // ========== SEO FIELDS END ==========
-        })
-        setPreviewUrl('')
-        
-        // Notify parent to refresh
-        if (onGallerySaved) {
-          onGallerySaved()
-        }
-      } else {
-        // Handle error
-        console.error('API error:', response); // Debug log
-        if (response.unauthorized) {
-          alert('Please login to add/edit gallery items')
-        } else {
-          alert(response.message || `Failed to ${isEditMode ? 'update' : 'create'} gallery item`)
-        }
+      // Reset form
+      setFormData({
+        image: null,
+        title: '',
+        description: '',
+        altText: '',
+        category: '',
+        photographer: '',
+        date: new Date().toISOString().split('T')[0],
+        isFeatured: false,
+        metaTitle: '',
+        metaDescription: '',
+        canonicalUrl: '',
+        ogTitle: '',
+        ogDescription: '',
+        keywords: ''
+      })
+      setPreviewUrl('')
+      
+      // Notify parent to refresh
+      if (onGallerySaved) {
+        onGallerySaved()
       }
     } catch (error) {
       console.error(`Error ${isEditMode ? 'updating' : 'creating'} gallery item:`, error)
-      alert('An error occurred while saving. Please try again.')
+      alert(error.message || 'An error occurred while saving. Please try again.')
     } finally {
       setIsSubmitting(false)
     }
   }
 
   const handleRemoveImage = () => {
-    if (previewUrl && !previewUrl.startsWith('http')) {
+    if (previewUrl && !previewUrl.startsWith('http') && previewUrl.startsWith('blob:')) {
       URL.revokeObjectURL(previewUrl)
     }
     setPreviewUrl('')
@@ -304,13 +290,10 @@ export default function CreateGalleryModal({ isOpen, onClose, onGallerySaved, ed
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto hide-scrollbar">
-      {/* Minimal Backdrop */}
       <div className="fixed inset-0 bg-black/50 backdrop-blur-sm transition-all" onClick={onClose}></div>
       
-      {/* Modal Container */}
       <div className="flex min-h-full items-center justify-center p-4 sm:p-6">
         <div className="relative bg-white rounded-2xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto hide-scrollbar">
-          {/* Minimal Header */}
           <div className="sticky top-0 bg-white/95 backdrop-blur-sm border-b border-slate-100 px-6 py-5 flex justify-between items-center">
             <h2 className="text-xl font-medium text-slate-900">
               {isEditMode ? 'Edit gallery post' : 'New gallery post'}
@@ -325,7 +308,6 @@ export default function CreateGalleryModal({ isOpen, onClose, onGallerySaved, ed
             </button>
           </div>
           
-          {/* Form */}
           <form onSubmit={handleSubmit} className="px-6 py-6 space-y-5">
             {/* Image Upload */}
             <div>
@@ -535,7 +517,6 @@ export default function CreateGalleryModal({ isOpen, onClose, onGallerySaved, ed
             </div>
 
             {/* ========== SEO SECTION START ========== */}
-            {/* SEO Toggle Button */}
             <div className="border-t border-slate-100 pt-4">
               <button
                 type="button"
@@ -549,7 +530,6 @@ export default function CreateGalleryModal({ isOpen, onClose, onGallerySaved, ed
               </button>
             </div>
 
-            {/* SEO Fields - Collapsible */}
             {showSeoSection && (
               <div className="space-y-4 p-4 bg-slate-50 rounded-xl border border-slate-100">
                 <div>
