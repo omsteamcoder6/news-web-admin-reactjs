@@ -132,12 +132,25 @@ export default function UpcomingEventForm({
 
       // Set existing image preview
       if (event.coverImageUrl) {
-        const baseUrl = API_BASE_URL.replace('/api', '');
-        setExistingImageUrl(`${baseUrl}${event.coverImageUrl}`);
-        setCoverImagePreview(`${baseUrl}${event.coverImageUrl}`);
-      }
+        const isAbsolute =
+          event.coverImageUrl.startsWith('http://') ||
+          event.coverImageUrl.startsWith('https://');
 
-      if (event.coverImage) {
+        let resolvedUrl = event.coverImageUrl;
+        if (!isAbsolute) {
+          if (!API_BASE_URL) {
+            console.error('VITE_API_URL is not set - check your .env / build config');
+          } else {
+            const baseUrl = API_BASE_URL.replace(/\/api\/?$/, '');
+            const cleanPath = event.coverImageUrl.startsWith('/')
+              ? event.coverImageUrl
+              : `/${event.coverImageUrl}`;
+            resolvedUrl = `${baseUrl}${cleanPath}`;
+          }
+        }
+        setExistingImageUrl(resolvedUrl);
+        setCoverImagePreview(resolvedUrl);
+      } else if (event.coverImage) {
         setExistingImageUrl(event.coverImage);
       }
     }

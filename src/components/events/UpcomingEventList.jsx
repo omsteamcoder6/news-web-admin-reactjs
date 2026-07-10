@@ -100,8 +100,16 @@ export default function UpcomingEventList({
   // Get the correct image URL
   const getImageUrl = (coverImageUrl) => {
     if (!coverImageUrl) return null;
-    const baseUrl = API_BASE_URL.replace('/api', '');
-    return `${baseUrl}${coverImageUrl}`;
+    if (coverImageUrl.startsWith('http://') || coverImageUrl.startsWith('https://')) {
+      return coverImageUrl;
+    }
+    if (!API_BASE_URL) {
+      console.error('VITE_API_URL is not set - check your .env / build config');
+      return null;
+    }
+    const baseUrl = API_BASE_URL.replace(/\/api\/?$/, '');
+    const cleanPath = coverImageUrl.startsWith('/') ? coverImageUrl : `/${coverImageUrl}`;
+    return `${baseUrl}${cleanPath}`;
   };
 
   // Format date for display
