@@ -1,12 +1,16 @@
 import { useState, useEffect, useRef } from 'react';
 
-// ─── Media URL helper ──────────────────────────────────────────────────────
-const MEDIA_BASE = (import.meta.env.VITE_API_URL || '').replace(/\/api\/?$/, '');
+// ─── API Base URL ──────────────────────────────────────────────────────
+const API_BASE_URL = import.meta.env.VITE_API_URL || '';
 
+// ─── Media URL helper ──────────────────────────────────────────────────────
 function getImageUrl(url) {
-  if (!url) return '';
-  if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:')) return url;
-  return `${MEDIA_BASE}${url.startsWith('/') ? '' : '/'}${url}`;
+    if (!url) return '';
+    if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:')) return url;
+
+    // Remove trailing /api/ if present for media URLs
+    const baseUrl = API_BASE_URL.replace(/\/api\/?$/, '');
+    return `${baseUrl}${url.startsWith('/') ? '' : '/'}${url}`;
 }
 
 // ─── Data ────────────────────────────────────────────────────────────────────
@@ -504,8 +508,8 @@ function MultipleImageUpload({ images = [], onChange, maxImages = 10 }) {
 // ─── Video Upload Component ─────────────────────────────────────────────────
 
 function VideoUpload({ videoUrl, videoFile, onUrlChange, onFileChange }) {
+    // Line ~515-530 - VideoUpload Component
     const [preview, setPreview] = useState(videoUrl || (videoFile ? URL.createObjectURL(videoFile) : null));
-    const inputRef = useRef(null);
 
     const handleFile = (file) => {
         if (!file) return;
@@ -518,7 +522,7 @@ function VideoUpload({ videoUrl, videoFile, onUrlChange, onFileChange }) {
             return;
         }
         onFileChange(file);
-        setPreview(URL.createObjectURL(file));
+        setPreview(URL.createObjectURL(file)); 
         onUrlChange('');
     };
 
@@ -893,7 +897,7 @@ export function AdvertisementForm({ isOpen, onClose, onSubmit, editingAd }) {
 
     const handleSubmit = () => {
         setIsLoading(true);
-        
+
         const imageFiles = formData.images
             .filter(img => img.file instanceof File)
             .map(img => img.file);

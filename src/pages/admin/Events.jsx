@@ -9,7 +9,6 @@ import BookingsManager from "../../components/events/BookingsManager";
 import PastEventsManager from "../../components/events/PastEventsManager";
 import GalleryManager from "../../components/events/GalleryManager";
 import PastGalleryManager from "../../components/events/PastGalleryManager";
-// UPDATED IMPORTS - Now using API-connected components
 import UpcomingEventList from "../../components/events/UpcomingEventList";
 import UpcomingEventForm from "../../components/events/UpcomingEventForm";
 import BookingFields from "../../components/events/BookingFields";
@@ -23,6 +22,8 @@ export default function Events() {
   const [categories, setCategories] = useState([]);
   const [enquiries, setEnquiries] = useState([]);
   const [bookings, setBookings] = useState([]);
+  const [galleries, setGalleries] = useState([]);
+  const [pastGalleries, setPastGalleries] = useState([]);
   const [showEventForm, setShowEventForm] = useState(false);
   const [showUpcomingForm, setShowUpcomingForm] = useState(false);
   const [editingEvent, setEditingEvent] = useState(null);
@@ -30,8 +31,11 @@ export default function Events() {
   const [loading, setLoading] = useState(false);
   const [initialLoad, setInitialLoad] = useState(true);
   
-  // ✅ NEW: State for upcoming events count
+  // ✅ State for upcoming events count
   const [upcomingEventsCount, setUpcomingEventsCount] = useState(0);
+  
+  // ✅ NEW: State for upcoming bookings count (confirmed bookings)
+  const [upcomingBookingsCount, setUpcomingBookingsCount] = useState(0);
   
   const { token } = useAuthStore();
 
@@ -39,6 +43,7 @@ export default function Events() {
     if (token) {
       loadData();
       loadUpcomingEventsCount();
+      loadUpcomingBookingsCount();
     }
   }, [token]);
 
@@ -97,6 +102,29 @@ export default function Events() {
       if (bookingsData.success) {
         setBookings(bookingsData.data);
         console.log("✅ Bookings loaded:", bookingsData.data.length);
+        
+        // ✅ Update upcoming bookings count after fetching
+        updateUpcomingBookingsCount(bookingsData.data);
+      }
+
+      // Fetch galleries
+      const galleriesRes = await fetch(`${API_BASE_URL}/gallery-events`, {
+        headers: getAuthHeaders()
+      });
+      const galleriesData = await galleriesRes.json();
+      if (galleriesData.success) {
+        setGalleries(galleriesData.data);
+        console.log("✅ Galleries loaded:", galleriesData.data.length);
+      }
+
+      // Fetch past galleries
+      const pastGalleriesRes = await fetch(`${API_BASE_URL}/past-galleries`, {
+        headers: getAuthHeaders()
+      });
+      const pastGalleriesData = await pastGalleriesRes.json();
+      if (pastGalleriesData.success) {
+        setPastGalleries(pastGalleriesData.data);
+        console.log("✅ Past galleries loaded:", pastGalleriesData.data.length);
       }
 
       setInitialLoad(false);
@@ -107,7 +135,37 @@ export default function Events() {
     }
   };
 
-  // ✅ NEW: Load upcoming events count
+  // ✅ NEW: Update upcoming bookings count
+  const updateUpcomingBookingsCount = (bookingsData) => {
+    if (!bookingsData) return;
+    
+    // Count confirmed bookings (upcoming bookings)
+    const confirmedBookings = bookingsData.filter(bk => 
+      bk.bookingStatus === "confirmed" || 
+      (bk.paymentStatus === "completed" && bk.bookingStatus !== "cancelled")
+    );
+    
+    const count = confirmedBookings.length;
+    setUpcomingBookingsCount(count);
+    console.log("✅ Upcoming bookings count:", count);
+  };
+
+  // ✅ NEW: Load upcoming bookings count
+  const loadUpcomingBookingsCount = async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/bookings/admin/all`, {
+        headers: getAuthHeaders()
+      });
+      const data = await response.json();
+      if (data.success) {
+        updateUpcomingBookingsCount(data.data);
+      }
+    } catch (error) {
+      console.error('❌ Error loading upcoming bookings count:', error);
+    }
+  };
+
+  // ✅ Load upcoming events count
   const loadUpcomingEventsCount = async () => {
     try {
       const response = await fetch(`${API_BASE_URL}/upcoming-events/statistics`, {
@@ -122,9 +180,11 @@ export default function Events() {
     }
   };
 
-  // ✅ NEW: Refresh upcoming events count after create/delete
-  const refreshUpcomingCount = () => {
-    loadUpcomingEventsCount();
+  // ✅ Refresh all counts after any data change
+  const refreshAllCounts = async () => {
+    await loadData();
+    await loadUpcomingEventsCount();
+    await loadUpcomingBookingsCount();
   };
 
   const handleSaveEvent = async (eventData) => {
@@ -153,7 +213,7 @@ export default function Events() {
       const data = await response.json();
       
       if (data.success) {
-        await loadData();
+        await refreshAllCounts();
         setShowEventForm(false);
         setEditingEvent(null);
         alert(editingEvent ? "Event updated successfully!" : "Event created successfully!");
@@ -182,7 +242,7 @@ export default function Events() {
       const data = await response.json();
       
       if (data.success) {
-        await loadData();
+        await refreshAllCounts();
         alert("Event deleted successfully!");
       } else {
         alert(data.message || 'Failed to delete event');
@@ -202,15 +262,17 @@ export default function Events() {
   };
 
   const handleCategoriesUpdate = async () => {
+    await refreshAllCounts();
+  };
+
+  const handleEnquiriesUpdate = async (updatedEnquiries) => {
+    setEnquiries(updatedEnquiries);
     await loadData();
   };
 
-  const handleEnquiriesUpdate = (updatedEnquiries) => {
-    setEnquiries(updatedEnquiries);
-  };
-
-  const handleBookingsUpdate = (updatedBookings) => {
+  const handleBookingsUpdate = async (updatedBookings) => {
     setBookings(updatedBookings);
+    await refreshAllCounts();
   };
 
   // Get active categories
@@ -222,27 +284,82 @@ export default function Events() {
     ? events.filter(ev => ev.status !== "past")
     : events.filter(ev => ev.categorySlug === filterCategory && ev.status !== "past");
 
-  // Count pending bookings for notification badge
+  // ✅ FIXED: Count pending bookings correctly
   const pendingBookingsCount = bookings.filter(bk => 
     bk.paymentStatus === "pending" || bk.bookingStatus === "pending"
   ).length;
 
   const totalBookingsCount = bookings.length;
 
-  // Count unread enquiries for notification badge
+  // ✅ FIXED: Count unread enquiries correctly
   const unreadEnquiriesCount = enquiries.filter(enq => enq.status === "unread").length;
 
-  // Tabs configuration - UPDATED with counts from API
+  // ✅ FIXED: Count past events correctly
+  const pastEventsCount = events.filter(ev => ev.status === "past").length;
+
+  // ✅ FIXED: Count active events (not past)
+  const activeEventsCount = events.filter(ev => ev.status !== "past").length;
+
+  // ✅ FIXED: Count galleries
+  const galleriesCount = galleries.length;
+  const pastGalleriesCount = pastGalleries.length;
+
+  // Tabs configuration - ✅ FIXED with correct counts
   const tabs = [
-    { id: "events", name: "Events", icon: "fa-calendar-alt", count: events.filter(ev => ev.status !== "past").length },
-    { id: "upcoming", name: "Upcoming Events", icon: "fa-calendar-plus", count: upcomingEventsCount },
-    { id: "categories", name: "Categories", icon: "fa-tags", count: categories.length },
-    { id: "enquiries", name: "Enquiries", icon: "fa-envelope", count: unreadEnquiriesCount },
-    { id: "bookings", name: "Bookings", icon: "fa-credit-card", count: pendingBookingsCount > 0 ? pendingBookingsCount : totalBookingsCount },
-    { id: "bookingfields", name: "Booking Fields", icon: "fa-ticket-alt", count: 0 },
-    { id: "past", name: "Past Events", icon: "fa-archive", count: events.filter(ev => ev.status === "past").length },
-    { id: "pastgallery", name: "Past Gallery", icon: "fa-images", count: 0 },
-    { id: "gallery", name: "Gallery", icon: "fa-images", count: 0 }
+    { 
+      id: "events", 
+      name: "Events", 
+      icon: "fa-calendar-alt", 
+      count: activeEventsCount 
+    },
+    { 
+      id: "upcoming", 
+      name: "Upcoming Events", 
+      icon: "fa-calendar-plus", 
+      count: upcomingEventsCount 
+    },
+    { 
+      id: "categories", 
+      name: "Categories", 
+      icon: "fa-tags", 
+      count: categories.length 
+    },
+    { 
+      id: "enquiries", 
+      name: "Enquiries", 
+      icon: "fa-envelope", 
+      count: unreadEnquiriesCount 
+    },
+    { 
+      id: "bookings", 
+      name: "Current Bookings", 
+      icon: "fa-credit-card", 
+      count: pendingBookingsCount > 0 ? pendingBookingsCount : totalBookingsCount 
+    },
+    { 
+      id: "bookingfields", 
+      name: "Upcoming Bookings", 
+      icon: "fa-ticket-alt", 
+      count: upcomingBookingsCount  // ✅ NOW SHOWS ACTUAL COUNT
+    },
+    { 
+      id: "past", 
+      name: "Past Events", 
+      icon: "fa-archive", 
+      count: pastEventsCount 
+    },
+    { 
+      id: "pastgallery", 
+      name: "Past Gallery", 
+      icon: "fa-images", 
+      count: pastGalleriesCount 
+    },
+    { 
+      id: "gallery", 
+      name: "Gallery", 
+      icon: "fa-images", 
+      count: galleriesCount 
+    }
   ];
 
   if (loading && initialLoad) {
@@ -281,7 +398,7 @@ export default function Events() {
               >
                 <i className={`fas ${tab.icon} mr-2`}></i>
                 {tab.name}
-                {tab.count > 0 && (
+                {tab.count !== undefined && tab.count > 0 && (
                   <span className={`ml-2 px-2 py-0.5 text-xs rounded-full ${
                     activeTab === tab.id 
                       ? "bg-orange-100 text-orange-600" 
@@ -298,7 +415,7 @@ export default function Events() {
           </nav>
         </div>
 
-        {/* Events Tab Content (Existing - Unchanged) */}
+        {/* Events Tab Content */}
         {activeTab === "events" && (
           <div className="space-y-6">
             <div className="flex justify-between items-center flex-wrap gap-4">
@@ -362,7 +479,7 @@ export default function Events() {
           </div>
         )}
 
-        {/* ✅ UPDATED: Upcoming Events Tab with API Connection */}
+        {/* Upcoming Events Tab */}
         {activeTab === "upcoming" && (
           <div className="space-y-6">
             <div className="flex justify-between items-center flex-wrap gap-4">
@@ -379,31 +496,29 @@ export default function Events() {
               </button>
             </div>
 
-            {/* ✅ UPDATED: Upcoming Event List with API integration */}
             <UpcomingEventList 
               token={token}
               categories={availableCategories}
-              onRefresh={refreshUpcomingCount}
+              onRefresh={refreshAllCounts}
             />
 
-            {/* ✅ UPDATED: Upcoming Event Form with API integration and Categories */}
             {showUpcomingForm && (
               <UpcomingEventForm
                 token={token}
-                categories={availableCategories}  // ✅ PASS CATEGORIES HERE
+                categories={availableCategories}
                 onClose={() => {
                   setShowUpcomingForm(false);
-                  refreshUpcomingCount();
+                  refreshAllCounts();
                 }}
                 onSuccess={() => {
-                  refreshUpcomingCount();
+                  refreshAllCounts();
                 }}
               />
             )}
           </div>
         )}
 
-        {/* Categories Tab Content (Unchanged) */}
+        {/* Categories Tab Content */}
         {activeTab === "categories" && (
           <CategoryManager
             categories={categories}
@@ -413,7 +528,7 @@ export default function Events() {
           />
         )}
 
-        {/* Enquiries Tab Content (Unchanged) */}
+        {/* Enquiries Tab Content */}
         {activeTab === "enquiries" && (
           <EnquiriesManager
             enquiries={enquiries}
@@ -422,7 +537,7 @@ export default function Events() {
           />
         )}
 
-        {/* Bookings Tab Content (Unchanged) */}
+        {/* Bookings Tab Content */}
         {activeTab === "bookings" && (
           <BookingsManager
             events={events}
@@ -435,13 +550,21 @@ export default function Events() {
         {activeTab === "bookingfields" && (
           <div className="space-y-6">
             <div>
-              <h2 className="text-2xl font-semibold text-slate-800">🎟️ Booking Fields</h2>
+              <h2 className="text-2xl font-semibold text-slate-800">🎟️ Upcoming Bookings</h2>
+              <p className="text-slate-500 text-sm mt-1">
+                Manage confirmed bookings for upcoming events
+                {upcomingBookingsCount > 0 && (
+                  <span className="ml-2 px-2 py-1 text-xs bg-orange-100 text-orange-800 rounded-full">
+                    {upcomingBookingsCount} confirmed
+                  </span>
+                )}
+              </p>
             </div>
             <BookingFields />
           </div>
         )}
 
-        {/* Past Events Tab (Unchanged) */}
+        {/* Past Events Tab */}
         {activeTab === "past" && (
           <PastEventsManager
             events={events}
@@ -454,25 +577,25 @@ export default function Events() {
           />
         )}
 
-        {/* Past Gallery Tab (Unchanged) */}
+        {/* Past Gallery Tab */}
         {activeTab === "pastgallery" && (
           <PastGalleryManager
             events={events}
             token={token}
-            onUpdate={loadData}
+            onUpdate={refreshAllCounts}
           />
         )}
 
-        {/* Gallery Tab Content (Unchanged) */}
+        {/* Gallery Tab Content */}
         {activeTab === "gallery" && (
           <GalleryManager
             events={events}
             token={token}
-            onUpdate={loadData}
+            onUpdate={refreshAllCounts}
           />
         )}
 
-        {/* Event Form - Rendered outside tab condition (Unchanged) */}
+        {/* Event Form */}
         {showEventForm && (
           <EventForm
             event={editingEvent}

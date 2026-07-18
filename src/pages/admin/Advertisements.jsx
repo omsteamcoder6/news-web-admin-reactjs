@@ -12,7 +12,18 @@ import { RejectDialog } from '../../components/advertisements/RejectDialog';
 import { toast } from 'sonner';
 import { useAuthStore } from '../../stores/authStore';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL;
+const API_BASE_URL = import.meta.env.VITE_API_URL || '';
+
+if (!import.meta.env.VITE_API_URL && typeof window !== 'undefined') {
+  // If this ever logs in production, every fetch below silently becomes
+  // "undefined/advertisements" and the admin panel will look "broken" —
+  // set VITE_API_URL at BUILD time (Vite inlines it, setting it only on
+  // the server after the build does nothing).
+  console.error(
+    '[Advertisements] VITE_API_URL is not set. Rebuild the admin app with ' +
+    'VITE_API_URL pointing at your backend, e.g. VITE_API_URL=https://api.example.com/api'
+  );
+}
 
 export default function AdvertisementsPage() {
   const [ads, setAds] = useState([]);
