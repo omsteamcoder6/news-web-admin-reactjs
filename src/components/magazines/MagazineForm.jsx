@@ -5,41 +5,29 @@ import { Card, CardContent } from "../../components/ui/Card";
 import { X, Loader2, Crown, Unlock, Upload, FileText } from "lucide-react";
 import { toast } from "react-hot-toast";
 
-// Get backend URL from environment variables
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
+// ============================================
+// Use the SAME base URL + resolution logic as MagazineCard.jsx
+// (that component successfully renders cover images in the grid,
+// so the edit-form preview must resolve URLs the exact same way)
+// ============================================
+const IMAGE_BASE_URL = import.meta.env.VITE_IMAGE_BASE_URL;
 
 function resolvePreviewUrl(url) {
   if (!url) return "";
-  if (url.startsWith("blob:")) return url;
-  
-  // If it's already a full URL with our backend, use it directly
-  if (url.startsWith(BACKEND_URL)) {
+
+  // Already a full URL (http/https)
+  if (url.startsWith("http://") || url.startsWith("https://")) {
     return url;
   }
-  
-  // Clean the URL - remove any backend URL if present
-  let cleanUrl = url;
-  if (cleanUrl.includes('localhost:3001')) {
-    cleanUrl = cleanUrl.replace(/^https?:\/\/localhost:3001/, '');
+
+  // Local blob preview (freshly chosen file)
+  if (url.startsWith("blob:")) {
+    return url;
   }
-  
-  // Ensure it starts with /
-  if (!cleanUrl.startsWith('/')) {
-    cleanUrl = '/' + cleanUrl;
-  }
-  
-  // FIXED: Handle both path formats
-  let fullUrl;
-  if (cleanUrl.startsWith('/uploads/')) {
-    fullUrl = `${BACKEND_URL}${cleanUrl}`;
-  } else if (cleanUrl.startsWith('/magazines/')) {
-    // Old format - add /uploads prefix
-    fullUrl = `${BACKEND_URL}/uploads${cleanUrl}`;
-  } else {
-    fullUrl = `${BACKEND_URL}${cleanUrl}`;
-  }
-  
-  return fullUrl;
+
+  // Database stores paths like "/uploads/xxx.jpg" — just prefix with the
+  // same IMAGE_BASE_URL that MagazineCard uses. Nothing else needed.
+  return `${IMAGE_BASE_URL}${url}`;
 }
 
 const getTodayDate = () => {
@@ -118,6 +106,7 @@ export function MagazineForm({ isOpen, onClose, onSubmit, initialData }) {
   const [isProcessingPdf, setIsProcessingPdf] = useState(false);
   const [pdfError, setPdfError] = useState("");
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [previewError, setPreviewError] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
@@ -125,8 +114,15 @@ export function MagazineForm({ isOpen, onClose, onSubmit, initialData }) {
       setPdfError("");
       setUploadProgress(0);
       setIsProcessingPdf(false);
+      setPreviewError(false);
     }
   }, [isOpen, initialData]);
+
+  // Reset the error flag whenever the preview URL itself changes
+  // (e.g. user picks a new file, or the form re-opens with different data)
+  useEffect(() => {
+    setPreviewError(false);
+  }, [formData.coverImagePreview]);
 
   const generateSlug = (title) =>
     title
@@ -294,22 +290,24 @@ export function MagazineForm({ isOpen, onClose, onSubmit, initialData }) {
                 Cover Image {initialData ? "(leave empty to keep current)" : "*"}
               </label>
               <div className="flex items-start gap-4">
-                {formData.coverImagePreview ? (
+                {formData.coverImagePreview && !previewError ? (
                   <div className="w-24 h-32 rounded-lg overflow-hidden border border-slate-200 flex-shrink-0 relative">
                     <img
                       src={formData.coverImagePreview}
                       alt="Cover preview"
                       className="w-full h-full object-cover"
-                      onError={(e) => {
-                        console.error('Preview failed to load');
-                        e.target.style.display = "none";
+                      onError={() => {
+                        console.error(`Preview failed to load: ${formData.coverImagePreview}`);
+                        setPreviewError(true);
                       }}
                     />
                   </div>
                 ) : (
-                  <div className="w-24 h-32 rounded-lg border-2 border-dashed border-slate-300 flex-shrink-0 flex flex-col items-center justify-center text-slate-400 bg-slate-50">
+                  <div className="w-24 h-32 rounded-lg border-2 border-dashed border-slate-300 flex-shrink-0 flex flex-col items-center justify-center text-slate-400 bg-slate-50 text-center px-1">
                     <Upload className="w-6 h-6 mb-1" />
-                    <span className="text-xs">No image</span>
+                    <span className="text-xs">
+                      {previewError ? "Image failed to load" : "No image"}
+                    </span>
                   </div>
                 )}
 

@@ -14,7 +14,7 @@ export default function UpcomingEventForm({
   const [formData, setFormData] = useState({
     title: "",
     category: "",
-    status: "upcoming",
+    status: "upcoming", // ✅ Always "upcoming"
     date: "",
     time: "",
     venue: "",
@@ -26,7 +26,7 @@ export default function UpcomingEventForm({
 
   const [coverImage, setCoverImage] = useState(null);
   const [coverImagePreview, setCoverImagePreview] = useState(null);
-  const [existingImageUrl, setExistingImageUrl] = useState(null); // ✅ Store existing image URL
+  const [existingImageUrl, setExistingImageUrl] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const fileInputRef = useRef(null);
@@ -37,21 +37,17 @@ export default function UpcomingEventForm({
       console.log("📝 Populating form with event data:", event);
       console.log("📋 Available categories:", categories);
       
-      // Format date for input field (YYYY-MM-DD)
       let formattedDate = "";
       if (event.date) {
         const dateObj = new Date(event.date);
         formattedDate = dateObj.toISOString().split('T')[0];
       }
 
-      // Format time (HH:MM)
       let formattedTime = "";
       if (event.time) {
-        // If time is already in HH:MM format
         if (event.time.includes(':')) {
           formattedTime = event.time;
         } else {
-          // Try to parse from date
           try {
             const timeObj = new Date(event.time);
             formattedTime = timeObj.toTimeString().slice(0, 5);
@@ -61,57 +57,44 @@ export default function UpcomingEventForm({
         }
       }
 
-      // ✅ FIX: Find the matching category slug from available categories
       let categoryValue = "";
-      
-      // First, determine what category identifier we have from the event
       let eventCategoryIdentifier = "";
       
       if (event.categorySlug) {
         eventCategoryIdentifier = event.categorySlug;
       } else if (event.category) {
         if (typeof event.category === "object") {
-          // If category is an object, try to get slug, _id, or name
           eventCategoryIdentifier = event.category.slug || event.category._id || event.category.name || "";
         } else {
-          // If category is a string
           eventCategoryIdentifier = event.category;
         }
       }
 
       console.log("🔍 Event category identifier:", eventCategoryIdentifier);
 
-      // Now find matching category from the categories prop
       if (eventCategoryIdentifier && categories.length > 0) {
-        // Try to find category by slug first
         let matchedCategory = categories.find(cat => cat.slug === eventCategoryIdentifier);
         
-        // If not found by slug, try by _id
         if (!matchedCategory) {
           matchedCategory = categories.find(cat => cat._id === eventCategoryIdentifier);
         }
         
-        // If still not found, try by name (case-insensitive)
         if (!matchedCategory) {
           matchedCategory = categories.find(cat => 
             cat.name.toLowerCase() === eventCategoryIdentifier.toLowerCase()
           );
         }
         
-        // If we found a match, use its slug
         if (matchedCategory) {
           categoryValue = matchedCategory.slug;
           console.log("✅ Matched category:", matchedCategory.name, "with slug:", matchedCategory.slug);
         } else {
-          // If no match found, try to use the original value if it looks like a slug
-          // (This handles cases where the category data might already be a slug)
           const isSlug = categories.some(cat => cat.slug === eventCategoryIdentifier);
           if (isSlug) {
             categoryValue = eventCategoryIdentifier;
             console.log("✅ Using original value as slug:", eventCategoryIdentifier);
           } else {
             console.warn("⚠️ No matching category found for:", eventCategoryIdentifier);
-            // Set to empty string to show "Select a category" placeholder
             categoryValue = "";
           }
         }
@@ -119,8 +102,8 @@ export default function UpcomingEventForm({
 
       setFormData({
         title: event.title || "",
-        category: categoryValue, // 👈 Now properly matched to dropdown options
-        status: event.status || "upcoming",
+        category: categoryValue,
+        status: "upcoming", // ✅ Always "upcoming"
         date: formattedDate,
         time: formattedTime,
         venue: event.venue || "",
@@ -130,7 +113,6 @@ export default function UpcomingEventForm({
         price: event.price || 0,
       });
 
-      // Set existing image preview
       if (event.coverImageUrl) {
         const isAbsolute =
           event.coverImageUrl.startsWith('http://') ||
@@ -154,14 +136,12 @@ export default function UpcomingEventForm({
         setExistingImageUrl(event.coverImage);
       }
     }
-  }, [event, isEdit, categories]); // ✅ Added categories to dependencies
+  }, [event, isEdit, categories]);
 
-  // Handle image upload
   const handleImageChange = (e) => {
     const file = e.target.files[0];
     if (!file) return;
 
-    // Validate file type
     const validTypes = ["image/jpeg", "image/png", "image/gif", "image/webp"];
     if (!validTypes.includes(file.type)) {
       alert("❌ Please upload a JPEG, PNG, GIF, or WebP image.");
@@ -169,21 +149,18 @@ export default function UpcomingEventForm({
       return;
     }
 
-    // Validate file size (5MB)
     if (file.size > 5 * 1024 * 1024) {
       alert("❌ Image size must be under 5MB.");
       e.target.value = "";
       return;
     }
 
-    // Create preview URL
     const previewUrl = URL.createObjectURL(file);
     setCoverImage(file);
     setCoverImagePreview(previewUrl);
-    setExistingImageUrl(null); // ✅ Clear existing image when new one is selected
+    setExistingImageUrl(null);
   };
 
-  // Remove uploaded image
   const removeImage = () => {
     if (coverImagePreview && !existingImageUrl) {
       URL.revokeObjectURL(coverImagePreview);
@@ -196,12 +173,10 @@ export default function UpcomingEventForm({
     }
   };
 
-  // Handle form submission for both create and update
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError(null);
 
-    // Validations
     if (!formData.title.trim()) {
       alert("❌ Please enter event title");
       return;
@@ -223,7 +198,6 @@ export default function UpcomingEventForm({
       return;
     }
 
-    // Validate Google Maps URL (optional)
     if (formData.googleMapsUrl.trim()) {
       try {
         new URL(formData.googleMapsUrl);
@@ -236,11 +210,10 @@ export default function UpcomingEventForm({
     setLoading(true);
 
     try {
-      // Create FormData for multipart/form-data upload
       const formDataToSend = new FormData();
       formDataToSend.append("title", formData.title.trim());
       formDataToSend.append("category", formData.category);
-      formDataToSend.append("status", formData.status);
+      formDataToSend.append("status", "upcoming"); // ✅ Always "upcoming"
       formDataToSend.append("date", formData.date);
       formDataToSend.append("time", formData.time);
       formDataToSend.append("venue", formData.venue || "");
@@ -249,12 +222,10 @@ export default function UpcomingEventForm({
       formDataToSend.append("capacity", formData.capacity.toString());
       formDataToSend.append("price", formData.price.toString());
 
-      // Append image if a new one is selected
       if (coverImage) {
         formDataToSend.append("coverImage", coverImage);
       }
 
-      // Determine if POST (create) or PUT (update)
       const method = isEdit ? "PUT" : "POST";
       const url = isEdit 
         ? `${API_BASE_URL}/upcoming-events/${event._id || event.id}` 
@@ -264,7 +235,7 @@ export default function UpcomingEventForm({
       console.log("📦 Form data being sent:", {
         title: formData.title,
         category: formData.category,
-        status: formData.status,
+        status: "upcoming",
         date: formData.date,
         time: formData.time,
         venue: formData.venue,
@@ -273,12 +244,10 @@ export default function UpcomingEventForm({
         hasImage: !!coverImage
       });
 
-      // Send to API
       const response = await fetch(url, {
         method: method,
         headers: {
           "Authorization": `Bearer ${token}`,
-          // DON'T set Content-Type - browser will set it with boundary for FormData
         },
         body: formDataToSend,
       });
@@ -288,7 +257,6 @@ export default function UpcomingEventForm({
       if (data.success) {
         alert(`✅ ${isEdit ? 'Event updated' : 'Upcoming event created'} successfully!`);
         
-        // Reset form if creating new
         if (!isEdit) {
           setFormData({
             title: "",
@@ -320,7 +288,6 @@ export default function UpcomingEventForm({
     }
   };
 
-  // Format date for display
   const formatDateForDisplay = (dateStr) => {
     if (!dateStr) return "";
     const parts = dateStr.split("-");
@@ -330,7 +297,6 @@ export default function UpcomingEventForm({
     return dateStr;
   };
 
-  // Get active categories
   const activeCategories = categories.filter(cat => cat.status === "active");
 
   return (
@@ -432,23 +398,18 @@ export default function UpcomingEventForm({
             )}
           </div>
 
-          {/* Event Status */}
+          {/* Event Status - ONLY UPCOMING */}
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-2">
               Event Status <span className="text-red-500">*</span>
             </label>
-            <select
-              value={formData.status}
-              onChange={(e) =>
-                setFormData({ ...formData, status: e.target.value })
-              }
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none"
-              required
-            >
-              <option value="upcoming">📅 Upcoming</option>
-              <option value="past">⏪ Past</option>
-              <option value="cancelled">🚫 Cancelled</option>
-            </select>
+            <div className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-700">
+              📅 Upcoming
+              <input type="hidden" name="status" value="upcoming" />
+            </div>
+            <p className="text-xs text-gray-500 mt-1">
+              All events created here are automatically marked as "Upcoming"
+            </p>
           </div>
 
           {/* Event Date & Time */}

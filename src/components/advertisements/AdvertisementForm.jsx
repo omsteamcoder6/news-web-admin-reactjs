@@ -509,6 +509,7 @@ function MultipleImageUpload({ images = [], onChange, maxImages = 10 }) {
 
 function VideoUpload({ videoUrl, videoFile, onUrlChange, onFileChange }) {
     // Line ~515-530 - VideoUpload Component
+    const inputRef = useRef(null);
     const [preview, setPreview] = useState(videoUrl || (videoFile ? URL.createObjectURL(videoFile) : null));
 
     const handleFile = (file) => {
@@ -522,7 +523,7 @@ function VideoUpload({ videoUrl, videoFile, onUrlChange, onFileChange }) {
             return;
         }
         onFileChange(file);
-        setPreview(URL.createObjectURL(file)); 
+        setPreview(URL.createObjectURL(file));
         onUrlChange('');
     };
 
@@ -875,11 +876,21 @@ export function AdvertisementForm({ isOpen, onClose, onSubmit, editingAd }) {
 
     const positions = POSITION_CATEGORIES[formData.placementCategory] ?? [];
 
+    // ✅ FIXED: Stronger validation for endDate
     const isDisabled = () => {
         if (!formData.title) return true;
         if (formData.budget <= 0) return true;
         if (formData.pricingModel !== 'fixed' && formData.costPerUnit <= 0) return true;
         if (formData.type === 'banner' && !selectedSize) return true;
+
+        // ✅ FIXED: Comprehensive endDate validation
+        if (!formData.startDate || formData.startDate === '') return true;
+        if (!formData.endDate || formData.endDate === '') return true;
+
+        const startDate = new Date(formData.startDate);
+        const endDate = new Date(formData.endDate);
+        if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) return true;
+        if (endDate <= startDate) return true;
 
         switch (formData.type) {
             case 'banner':
@@ -894,8 +905,17 @@ export function AdvertisementForm({ isOpen, onClose, onSubmit, editingAd }) {
                 return true;
         }
     };
-
-    const handleSubmit = () => {
+    // ✅ FIXED: was `const handleSubmit = () => {...}` — it called the async
+    // onSubmit() without awaiting it, then immediately closed the dialog
+    // and reset isLoading. That meant the modal closed (and the form state
+    // was wiped) the instant Submit was clicked, regardless of whether the
+    // save actually succeeded on the server. If the save failed in
+    // production (network error, validation error, server error), the
+    // admin would see the dialog close as if it worked, with no visible
+    // sign the ad was never created — looking exactly like "silently not
+    // saving to the database". Now we await the result and only close on
+    // confirmed success, keeping the form open (with data intact) on failure.
+    const handleSubmit = async () => {
         setIsLoading(true);
 
         const imageFiles = formData.images
@@ -944,9 +964,17 @@ export function AdvertisementForm({ isOpen, onClose, onSubmit, editingAd }) {
             adSlot2Enabled: formData.adSlot2Enabled,
         };
 
-        onSubmit(submitData, imageFiles, formData.videoFile);
-        setIsLoading(false);
-        onClose();
+        try {
+            const result = await onSubmit(submitData, imageFiles, formData.videoFile);
+            // saveAd() in the parent returns true on success, false/undefined
+            // on failure (it already shows its own toast on error). Only
+            // close (and lose the in-progress form state) if it succeeded.
+            if (result !== false) {
+                onClose();
+            }
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     const estClicks = formData.costPerUnit > 0
@@ -1183,8 +1211,27 @@ export function AdvertisementForm({ isOpen, onClose, onSubmit, editingAd }) {
                                 <input type="date" value={formData.startDate} onChange={e => set('startDate', e.target.value)} style={s.input} />
                             </div>
                             <div style={s.field}>
-                                <label style={s.label}>End Date</label>
-                                <input type="date" value={formData.endDate} onChange={e => set('endDate', e.target.value)} style={s.input} />
+                                <label style={s.label}>End Date *</label>
+                                <input
+                                    type="date"
+                                    value={formData.endDate}
+                                    min={formData.startDate || undefined}
+                                    onChange={e => set('endDate', e.target.value)}
+                                    style={{
+                                        ...s.input,
+                                        ...(!formData.endDate ? { borderColor: '#dc2626' } : {})
+                                    }}
+                                />
+                                {!formData.endDate && (
+                                    <span style={{ fontSize: '12px', color: '#dc2626', marginTop: '4px', display: 'block' }}>
+                                        End date is required
+                                    </span>
+                                )}
+                                {formData.endDate && formData.startDate && new Date(formData.endDate) <= new Date(formData.startDate) && (
+                                    <span style={{ fontSize: '12px', color: '#dc2626', marginTop: '4px', display: 'block' }}>
+                                        End date must be after start date
+                                    </span>
+                                )}
                             </div>
                         </div>
                     </div>

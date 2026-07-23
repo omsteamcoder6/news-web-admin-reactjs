@@ -53,7 +53,7 @@ export default function EventForm({ event, categories, onSave, onClose }) {
     desc: event?.desc || "",
     capacity: event?.capacity || 100,
     price: event?.price || 0,
-    status: event?.status || "upcoming",
+    status: "upcoming", // ✅ Always "upcoming" - no other options
   });
   
   const [imagePreview, setImagePreview] = useState(getFullImageUrl(event?.imageUrl) || "");
@@ -119,10 +119,6 @@ export default function EventForm({ event, categories, onSave, onClose }) {
       alert("Please enter max capacity (minimum 1)");
       return;
     }
-    if (!formData.status) {
-      alert("Please select event status");
-      return;
-    }
 
     // IMPORTANT: Convert local datetime to UTC for storage
     const localDate = new Date(formData.date);
@@ -150,7 +146,7 @@ export default function EventForm({ event, categories, onSave, onClose }) {
     submitData.append('desc', formData.desc || "");
     submitData.append('capacity', parseInt(formData.capacity) || 0);
     submitData.append('price', parseFloat(formData.price) || 0);
-    submitData.append('status', formData.status);
+    submitData.append('status', formData.status); // Always "upcoming"
     
     if (event) {
       if (imageAction === 'new' && selectedFile) {
@@ -241,24 +237,17 @@ export default function EventForm({ event, categories, onSave, onClose }) {
             )}
           </div>
 
-          {/* Event Status */}
+          {/* Event Status - ONLY UPCOMING */}
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-2">
               Event Status <span className="text-red-500">*</span>
             </label>
-            <select
-              value={formData.status}
-              onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none"
-              required
-            >
-              <option value="upcoming">📅 Upcoming</option>
-              <option value="past">📆 Past</option>
-              <option value="ongoing">🔄 Ongoing</option>
-              <option value="cancelled">❌ Cancelled</option>
-            </select>
+            <div className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-700">
+              📅 Upcoming
+              <input type="hidden" name="status" value="upcoming" />
+            </div>
             <p className="text-xs text-gray-500 mt-1">
-              Select "Upcoming" for future events or "Past" for events that have already happened
+              All events created here are automatically marked as "Upcoming"
             </p>
           </div>
 

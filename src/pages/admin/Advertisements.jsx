@@ -14,14 +14,23 @@ import { useAuthStore } from '../../stores/authStore';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || '';
 
-if (!import.meta.env.VITE_API_URL && typeof window !== 'undefined') {
-  // If this ever logs in production, every fetch below silently becomes
-  // "undefined/advertisements" and the admin panel will look "broken" —
-  // set VITE_API_URL at BUILD time (Vite inlines it, setting it only on
-  // the server after the build does nothing).
+// ✅ FIXED: If VITE_API_URL isn't baked in at build time, API_BASE_URL falls
+// back to '' and every fetch() call below becomes a RELATIVE request
+// (e.g. `/advertisements`). In local dev that's often masked by a dev-server
+// proxy, but in a production static build there usually is no proxy — the
+// request silently goes to the frontend's own origin instead of the API
+// server, gets a 404/HTML response back, and the advertisement is never
+// created. This is one of the most common "works locally, nothing saves in
+// production" causes for a split frontend/backend deploy. Flag it clearly
+// so it can't fail silently.
+const isApiConfigured = Boolean(import.meta.env.VITE_API_URL);
+
+if (!isApiConfigured && typeof window !== 'undefined') {
   console.error(
-    '[Advertisements] VITE_API_URL is not set. Rebuild the admin app with ' +
-    'VITE_API_URL pointing at your backend, e.g. VITE_API_URL=https://api.example.com/api'
+    '[Advertisements] VITE_API_URL is not set. Requests will be sent to ' +
+    `${window.location.origin} instead of your API server, and will fail. ` +
+    'Rebuild the admin app with VITE_API_URL pointing at your backend, ' +
+    'e.g. VITE_API_URL=https://api.example.com/api'
   );
 }
 
@@ -112,23 +121,39 @@ export default function AdvertisementsPage() {
     }
   }, [fetchAds, fetchStats, isAuthenticated, token]);
 
-  // ✅ FIXED: Clean save function
+  // ✅ FIXED: Clean save function with proper handling of empty strings
   const saveAd = async (formData, imageFiles, videoFile) => {
     if (!token) {
       toast.error('Please login to continue');
+      return;
+    }
+
+    // ✅ FIXED: fail loudly instead of silently POSTing to the wrong origin
+    if (!isApiConfigured) {
+      toast.error('API URL is not configured. Contact an admin — the app was built without VITE_API_URL.');
       return;
     }
     
     try {
       const formDataToSend = new FormData();
       
-      // Append form data - clean version
+      // ✅ FIX: Append form data - skip empty strings for required fields
       Object.keys(formData).forEach(key => {
-        if (formData[key] !== null && formData[key] !== undefined) {
-          if (typeof formData[key] === 'object') {
-            formDataToSend.append(key, JSON.stringify(formData[key]));
+        const value = formData[key];
+        
+        // Skip empty strings for required fields
+        if (key === 'endDate' && (value === '' || value === null || value === undefined)) {
+          return;
+        }
+        if (key === 'startDate' && (value === '' || value === null || value === undefined)) {
+          return;
+        }
+        
+        if (value !== null && value !== undefined && value !== '') {
+          if (typeof value === 'object') {
+            formDataToSend.append(key, JSON.stringify(value));
           } else {
-            formDataToSend.append(key, formData[key]);
+            formDataToSend.append(key, String(value));
           }
         }
       });
@@ -149,7 +174,6 @@ export default function AdvertisementsPage() {
         'Authorization': `Bearer ${token}`
       };
       
-      // ✅ FIXED: Use consistent ID extraction
       const adId = editingAd?._id || editingAd?.id;
       const url = adId 
         ? `${API_BASE_URL}/advertisements/${adId}`
@@ -174,12 +198,19 @@ export default function AdvertisementsPage() {
         await fetchStats();
         setShowCreateDialog(false);
         setEditingAd(null);
+        // ✅ FIXED: report success back to the form so it knows it's safe
+        // to close and discard its state.
+        return true;
       } else {
         toast.error(result.message || 'Failed to save advertisement');
+        return false;
       }
     } catch (error) {
       console.error('Failed to save ad:', error);
       toast.error(error.message || 'Failed to save advertisement');
+      // ✅ FIXED: report failure so the form stays open with the admin's
+      // data intact instead of silently closing and losing it.
+      return false;
     }
   };
 
@@ -470,7 +501,6 @@ export default function AdvertisementsPage() {
                   </div>
                 ) : (
                   filteredAds.map(ad => {
-                    // ✅ FIXED: Ensure consistent ID
                     const adId = ad._id || ad.id;
                     return (
                       <AdCard
@@ -479,9 +509,7 @@ export default function AdvertisementsPage() {
                           ...ad,
                           id: adId,
                         }}
-                        // ✅ FIXED: Pass clean editing data
                         onEdit={(ad) => { 
-                          // Clean the ad object before passing to form
                           const cleanAd = { ...ad };
                           delete cleanAd.__v;
                           delete cleanAd.createdAt;

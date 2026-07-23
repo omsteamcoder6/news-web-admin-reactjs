@@ -224,7 +224,7 @@ export default function AdminDashboard() {
         {/* Header */}
         <div>
           <h1 className="text-4xl font-bold text-slate-900">Dashboard</h1>
-          <p className="text-slate-600 mt-2">Welcome to Vikatan Admin Panel - Your complete news management hub</p>
+          <p className="text-slate-600 mt-2">Welcome to Readers Inspiration Admin Panel - Your complete news management hub</p>
         </div>
 
         {/* Stats Cards */}
